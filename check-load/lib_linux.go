@@ -25,21 +25,21 @@ import (
 	"strings"
 )
 
-func getLoadAverages() (_ error, loadAverages [3]float64) {
+func getLoadAverages() (loadAverages [3]float64, _ error) {
 	bytes, err := ioutil.ReadFile("/proc/loadavg")
 	if err != nil {
-		return fmt.Errorf("load: could not read /proc/loadavg file (%s)", err.Error()), loadAverages
+		return loadAverages, fmt.Errorf("load: could not read /proc/loadavg file (%s)", err.Error())
 	}
 
 	values := strings.Split(string(bytes), " ")
 	for i := 0; i < 3; i++ {
 		value, err := strconv.ParseFloat(values[i], strconv.IntSize)
 		if err != nil {
-			return fmt.Errorf("load: could not parse [%s] as float (%s)", values[i], err.Error()), loadAverages
+			return loadAverages, fmt.Errorf("load: could not parse [%s] as float (%s)", values[i], err.Error())
 		}
 
 		loadAverages[i] = value
 	}
 
-	return nil, loadAverages
+	return loadAverages, nil
 }

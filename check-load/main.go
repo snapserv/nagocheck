@@ -25,34 +25,34 @@ import (
 	"runtime"
 )
 
-type LoadPlugin struct {
+type loadPlugin struct {
 	*shared.BasePlugin
 
 	PerCPU bool
 }
 
-func NewLoadPlugin() *LoadPlugin {
-	return &LoadPlugin{
+func newLoadPlugin() *loadPlugin {
+	return &loadPlugin{
 		BasePlugin: shared.NewPlugin(),
 	}
 }
 
-func (p *LoadPlugin) ParseFlags() {
+func (p *loadPlugin) ParseFlags() {
 	flag.BoolVar(&p.PerCPU, "per-cpu", false,
 		"Toggles per-cpu metrics (divides load average by cpu count)")
 
 	p.BasePlugin.ParseFlags()
 }
 
-func (p *LoadPlugin) Probe(warnings *nagopher.WarningCollection) (_ error, metrics []nagopher.Metric) {
-	err, valueRange := nagopher.ParseRange("0:")
+func (p *loadPlugin) Probe(warnings *nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
+	valueRange, err := nagopher.ParseRange("0:")
 	if err != nil {
-		return err, metrics
+		return metrics, err
 	}
 
-	err, loadAverages := getLoadAverages()
+	loadAverages, err := getLoadAverages()
 	if err != nil {
-		return err, metrics
+		return metrics, err
 	}
 
 	metricNames := []string{"load1", "load5", "load15"}
@@ -68,11 +68,11 @@ func (p *LoadPlugin) Probe(warnings *nagopher.WarningCollection) (_ error, metri
 		))
 	}
 
-	return nil, metrics
+	return metrics, nil
 }
 
 func main() {
-	plugin := NewLoadPlugin()
+	plugin := newLoadPlugin()
 	plugin.ParseFlags()
 
 	check := nagopher.NewCheck("load", nagopher.NewBaseSummary())
