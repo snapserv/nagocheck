@@ -19,9 +19,8 @@
 package shared
 
 import (
-	"flag"
-
 	"github.com/snapserv/nagopher"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 // Plugin represents a interface for all plugin types.
@@ -54,10 +53,13 @@ func (p *BasePlugin) ParseFlags() {
 	var err error
 	var warningRangeString, criticalRangeString string
 
-	flag.BoolVar(&p.Verbose, "verbose", false, "Toggles verbose plugin output")
-	flag.StringVar(&warningRangeString, "warning", "", "Warning threshold range specifier")
-	flag.StringVar(&criticalRangeString, "critical", "", "Critical threshold range specifier")
-	flag.Parse()
+	kingpin.Flag("verbose", "Enable verbose plugin output.").
+		Short('v').BoolVar(&p.Verbose)
+	kingpin.Flag("warning", "Warning threshold formatted as Nagios range specifier.").
+		Short('w').StringVar(&warningRangeString)
+	kingpin.Flag("critical", "Critical threshold formatted as Nagios range specifier.").
+		Short('c').StringVar(&criticalRangeString)
+	kingpin.Parse()
 
 	if p.WarningRange, err = nagopher.ParseRange(warningRangeString); err != nil {
 		panic(err.Error())

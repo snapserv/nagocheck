@@ -19,19 +19,19 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"math"
 	"strconv"
 
 	"github.com/snapserv/nagopher"
 	"github.com/snapserv/nagopher-checks/shared"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 type memoryPlugin struct {
 	*shared.BasePlugin
 
-	IgnoreReclaimable bool
+	CountReclaimable bool
 }
 
 type memoryUsage struct {
@@ -54,8 +54,8 @@ func newMemoryPlugin() *memoryPlugin {
 }
 
 func (p *memoryPlugin) ParseFlags() {
-	flag.BoolVar(&p.IgnoreReclaimable, "ignore-reclaimable", false,
-		"Toggles ignoring reclaimable space in usage calculation (counts cached/buffers as used)")
+	kingpin.Flag("count-reclaimable", "Count reclaimable space (cached/buffers) as used.").
+		BoolVar(&p.CountReclaimable)
 
 	p.BasePlugin.ParseFlags()
 }
@@ -72,7 +72,7 @@ func (p *memoryPlugin) Probe(warnings *nagopher.WarningCollection) (metrics []na
 	}
 
 	freeMemory := memoryUsage.free
-	if !p.IgnoreReclaimable {
+	if !p.CountReclaimable {
 		freeMemory += memoryUsage.cached + memoryUsage.buffers
 	}
 	usagePercent := shared.Round(100-(freeMemory/memoryUsage.total*100), 2)

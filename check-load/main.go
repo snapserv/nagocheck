@@ -19,11 +19,11 @@
 package main
 
 import (
-	"flag"
 	"runtime"
 
 	"github.com/snapserv/nagopher"
 	"github.com/snapserv/nagopher-checks/shared"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 type loadPlugin struct {
@@ -39,8 +39,8 @@ func newLoadPlugin() *loadPlugin {
 }
 
 func (p *loadPlugin) ParseFlags() {
-	flag.BoolVar(&p.PerCPU, "per-cpu", false,
-		"Toggles per-cpu metrics (divides load average by cpu count)")
+	kingpin.Flag("per-cpu", "Enable per-cpu metrics (divide load average by cpu count).").
+		BoolVar(&p.PerCPU)
 
 	p.BasePlugin.ParseFlags()
 }
