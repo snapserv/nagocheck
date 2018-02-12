@@ -20,11 +20,8 @@ package main
 
 import (
 	"flag"
-
 	"fmt"
-
 	"math"
-
 	"strconv"
 
 	"github.com/snapserv/nagopher"

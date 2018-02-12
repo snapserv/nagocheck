@@ -22,9 +22,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"regexp"
-	"strings"
-
 	"strconv"
+	"strings"
 
 	"github.com/snapserv/nagopher-checks/shared"
 )

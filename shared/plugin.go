@@ -20,6 +20,7 @@ package shared
 
 import (
 	"flag"
+
 	"github.com/snapserv/nagopher"
 )
 

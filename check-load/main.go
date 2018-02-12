@@ -20,9 +20,10 @@ package main
 
 import (
 	"flag"
+	"runtime"
+
 	"github.com/snapserv/nagopher"
 	"github.com/snapserv/nagopher-checks/shared"
-	"runtime"
 )
 
 type loadPlugin struct {
