@@ -78,13 +78,13 @@ func (p *memoryPlugin) Probe(warnings *nagopher.WarningCollection) (metrics []na
 	usagePercent := shared.Round(100-(freeMemory/memoryUsage.total*100), 2)
 
 	metrics = append(metrics,
-		nagopher.NewMetric("usage", usagePercent, "%", nil, ""),
+		nagopher.NewNumericMetric("usage", usagePercent, "%", nil, ""),
 
-		nagopher.NewMetric("active", memoryUsage.active, "KB", valueRange, ""),
-		nagopher.NewMetric("inactive", memoryUsage.inactive, "KB", valueRange, ""),
-		nagopher.NewMetric("buffers", memoryUsage.buffers, "KB", valueRange, ""),
-		nagopher.NewMetric("cached", memoryUsage.cached, "KB", valueRange, ""),
-		nagopher.NewMetric("total", memoryUsage.total, "KB", valueRange, ""),
+		nagopher.NewNumericMetric("active", memoryUsage.active, "KB", valueRange, ""),
+		nagopher.NewNumericMetric("inactive", memoryUsage.inactive, "KB", valueRange, ""),
+		nagopher.NewNumericMetric("buffers", memoryUsage.buffers, "KB", valueRange, ""),
+		nagopher.NewNumericMetric("cached", memoryUsage.cached, "KB", valueRange, ""),
+		nagopher.NewNumericMetric("total", memoryUsage.total, "KB", valueRange, ""),
 	)
 
 	return metrics, nil
@@ -98,8 +98,11 @@ func newMemorySummary() *memorySummary {
 
 func (s *memorySummary) getResultMetricValue(resultCollection *nagopher.ResultCollection, name string) float64 {
 	result := resultCollection.GetByMetricName(name)
-	if result != nil && result.Metric() != nil {
-		return result.Metric().Value()
+	if result != nil {
+		if metric := result.Metric(); metric != nil {
+			numberMetric := metric.(*nagopher.NumericMetric)
+			return numberMetric.Value()
+		}
 	}
 
 	return math.NaN()

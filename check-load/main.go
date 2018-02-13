@@ -64,7 +64,7 @@ func (p *loadPlugin) Probe(warnings *nagopher.WarningCollection) (metrics []nago
 			loadAverage /= float64(cpuCount)
 		}
 
-		metrics = append(metrics, nagopher.NewMetric(
+		metrics = append(metrics, nagopher.NewNumericMetric(
 			metricNames[key], loadAverage, "", valueRange, "load",
 		))
 	}
