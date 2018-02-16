@@ -19,7 +19,13 @@
 package shared
 
 import (
+	"fmt"
+	"os"
+	"syscall"
+	"time"
+
 	"github.com/snapserv/nagopher"
+	"github.com/theckman/go-flock"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -75,11 +81,69 @@ func (p *BasePlugin) Execute(check *nagopher.Check) {
 	runtime.ExecuteAndExit(check)
 }
 
+// ExecutePersistent is a helper method which extends Execute() with flock (based on given unique key, which should be
+// chosen wisely) and a persistent store, which is also named by the unique key passed. This is especially useful when
+// used with contexts like 'DeltaContext', which compare the current measurement against a previously measurement.
+func (p *BasePlugin) ExecutePersistent(check *nagopher.Check, uniqueKey string, store interface{}) {
+	// Prefix unique key with 'nagopher-checks.'
+	uniqueKey = "nagopher-checks." + uniqueKey
+
+	// Attempt to grab flock on unique key
+	fileLock := p.createFlock(uniqueKey)
+	defer fileLock.Unlock()
+	if err := p.ensureFlock(fileLock); err != nil {
+		panic(err)
+	}
+
+	// Load plugin persistence store
+	if err := LoadPersistentStore(uniqueKey, store); err != nil {
+		panic(err)
+	}
+
+	// Execute check with nagopher runtime
+	runtime := nagopher.NewRuntime(p.Verbose)
+	result := runtime.Execute(check)
+
+	// Save plugin persistence store
+	if err := SavePersistentStore(uniqueKey, store); err != nil {
+		panic(err)
+	}
+
+	// Unlink and unlock flock immediately after execution
+	syscall.Unlink(fileLock.Path())
+	fileLock.Unlock()
+
+	// Print plugin output and exit with the according exit code
+	fmt.Print(result.Output)
+	os.Exit(result.ExitCode)
+}
+
 // Probe represents the method executing the actual check/metrics logic and should be overridden by each plugin for
 // returning metrics. It also supports adding warnings through the passed 'WarningCollection' or returning an error in
 // case metric collection goes wrong.
 func (p *BasePlugin) Probe(warnings *nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
 	return metrics, nil
+}
+
+func (p *BasePlugin) createFlock(identifier string) *flock.Flock {
+	return flock.NewFlock(fmt.Sprintf("/tmp/.%s.lock", identifier))
+}
+
+func (p *BasePlugin) ensureFlock(flock *flock.Flock) error {
+	err := RetryDuring(10*time.Second, 100*time.Millisecond, func() error {
+		isLocked, err := flock.TryLock()
+		if err != nil {
+			return err
+		}
+
+		if !isLocked {
+			return fmt.Errorf("could not obtain flock for [%s]", flock.Path())
+		}
+
+		return nil
+	})
+
+	return err
 }
 
 // NewPluginResource instantiates 'BasePluginResource' and links it with the given plugin.

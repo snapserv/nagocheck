@@ -21,7 +21,6 @@ package main
 import (
 	"fmt"
 	"math"
-	"strconv"
 
 	"github.com/snapserv/nagopher"
 	"github.com/snapserv/nagopher-checks/shared"
@@ -31,19 +30,27 @@ import (
 type interfacePlugin struct {
 	*shared.BasePlugin
 
-	Name   string
-	Speed  int
-	Duplex string
-}
-
-type interfaceStats struct {
-	State  string
-	Speed  int
-	Duplex string
+	Name             string
+	SpeedRange       *nagopher.Range
+	speedRangeString string
+	ExpectedDuplex   []string
 }
 
 type interfaceSummary struct {
 	*nagopher.BaseSummary
+}
+
+type interfaceStats struct {
+	State    string
+	Speed    int
+	Duplex   string
+	TxErrors int
+	RxErrors int
+}
+
+type interfaceStore struct {
+	PreviousTxErrors float64
+	PreviousRxErrors float64
 }
 
 func newInterfacePlugin() *interfacePlugin {
@@ -52,21 +59,29 @@ func newInterfacePlugin() *interfacePlugin {
 	}
 }
 
-func (p *interfacePlugin) ParseFlags() {
-	kingpin.Flag("speed", "Return WARNING state when interface speed in Mbps does not match.").
+func (p *interfacePlugin) DefineFlags() {
+	kingpin.Flag("speed", "Interface speed threshold formatted as Nagios range specifier.").
 		Short('s').
-		IntVar(&p.Speed)
+		StringVar(&p.speedRangeString)
 
 	kingpin.Flag("duplex", "Return WARNING state when interface duplex does not match (e.g.: half, full).").
 		Short('d').
 		HintOptions("half", "full").
-		StringVar(&p.Duplex)
+		StringsVar(&p.ExpectedDuplex)
 
 	kingpin.Arg("name", "Name of network interface.").
 		Required().
 		StringVar(&p.Name)
+}
+
+func (p *interfacePlugin) ParseFlags() {
+	var err error
 
 	p.BasePlugin.ParseFlags()
+
+	if p.SpeedRange, err = nagopher.ParseRange(p.speedRangeString); err != nil {
+		panic(err.Error())
+	}
 }
 
 func (p *interfacePlugin) Probe(warnings *nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
@@ -75,10 +90,17 @@ func (p *interfacePlugin) Probe(warnings *nagopher.WarningCollection) (metrics [
 		return metrics, err
 	}
 
+	interfaceSpeed := float64(interfaceStats.Speed)
+	if interfaceStats.Speed == -1 {
+		interfaceSpeed = math.NaN()
+	}
+
 	metrics = append(metrics,
 		nagopher.NewStringMetric("state", interfaceStats.State, ""),
 		nagopher.NewStringMetric("duplex", interfaceStats.Duplex, ""),
-		nagopher.NewNumericMetric("speed", float64(interfaceStats.Speed), "Mbps", nil, ""),
+		nagopher.NewNumericMetric("speed", interfaceSpeed, "M", nil, ""),
+		nagopher.NewNumericMetric("errors_tx", float64(interfaceStats.TxErrors), "c", nil, ""),
+		nagopher.NewNumericMetric("errors_rx", float64(interfaceStats.RxErrors), "c", nil, ""),
 	)
 
 	return metrics, nil
@@ -92,10 +114,10 @@ func newInterfaceSummary() *interfaceSummary {
 
 func (s *interfaceSummary) Ok(resultCollection *nagopher.ResultCollection) string {
 	var interfaceSpeed string
-	if value := s.GetNumericMetricValue(resultCollection, "speed", math.NaN()); math.IsNaN(value) {
-		interfaceSpeed = "N/A"
-	} else {
-		interfaceSpeed = strconv.Itoa(int(value))
+
+	speedResult := resultCollection.GetByMetricName("speed")
+	if speedResult != nil {
+		interfaceSpeed = speedResult.Metric().ValueUnit()
 	}
 
 	return fmt.Sprintf(
@@ -107,16 +129,22 @@ func (s *interfaceSummary) Ok(resultCollection *nagopher.ResultCollection) strin
 }
 
 func main() {
+	store := &interfaceStore{}
+
 	plugin := newInterfacePlugin()
+	plugin.DefineFlags()
+
 	plugin.ParseFlags()
 
 	check := nagopher.NewCheck("interface", newInterfaceSummary())
 	check.AttachResources(shared.NewPluginResource(plugin))
 	check.AttachContexts(
-		nagopher.NewContext("state", ""),
-		nagopher.NewContext("duplex", ""),
-		nagopher.NewContext("speed", ""),
+		nagopher.NewStringMatchContext("state", []string{"UP"}, nagopher.StateWarning),
+		nagopher.NewStringMatchContext("duplex", plugin.ExpectedDuplex, nagopher.StateWarning),
+		nagopher.NewScalarContext("speed", nil, plugin.SpeedRange),
+		nagopher.NewDeltaContext("errors_tx", &store.PreviousTxErrors, nil, nil),
+		nagopher.NewDeltaContext("errors_rx", &store.PreviousRxErrors, nil, nil),
 	)
 
-	plugin.Execute(check)
+	plugin.ExecutePersistent(check, "interface-"+plugin.Name, &store)
 }

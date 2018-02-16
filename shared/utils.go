@@ -18,7 +18,11 @@
 
 package shared
 
-import "regexp"
+import (
+	"fmt"
+	"regexp"
+	"time"
+)
 
 // Round is a utility function which allows rounding a float64 to a given precision
 func Round(value float64, precision float64) float64 {
@@ -46,4 +50,27 @@ func RegexpSubMatchMap(r *regexp.Regexp, str string) (map[string]string, bool) {
 	}
 
 	return subMatchMap, true
+}
+
+// RetryDuring retries a given function until it no longer returns an error or the timeout value was reached. The delay
+// parameter specifies the delay between each unsuccessful attempt.
+func RetryDuring(timeout time.Duration, delay time.Duration, function func() error) (err error) {
+	startTime := time.Now()
+	attempts := 0
+	for {
+		attempts++
+
+		err = function()
+		if err == nil {
+			return
+		}
+
+		deltaTime := time.Now().Sub(startTime)
+		if deltaTime > timeout {
+			return fmt.Errorf("aborting retrying after %d attempts (during %s), last error: %s",
+				attempts, deltaTime, err.Error())
+		}
+
+		time.Sleep(delay)
+	}
 }

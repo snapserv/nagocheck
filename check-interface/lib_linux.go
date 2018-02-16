@@ -26,25 +26,32 @@ import (
 )
 
 func getInterfaceStats(name string) (*interfaceStats, error) {
-	state, err := getInterfaceState(name)
-	if err != nil {
+	var err error
+	var state, duplex string
+	var speed, txErrors, rxErrors int
+
+	if state, err = getInterfaceState(name); err != nil {
 		return nil, err
 	}
-
-	speed, err := getInterfaceSpeed(name)
-	if err != nil {
+	if speed, err = getInterfaceSpeed(name); err != nil {
 		return nil, err
 	}
-
-	duplex, err := getInterfaceDuplex(name)
-	if err != nil {
+	if duplex, err = getInterfaceDuplex(name); err != nil {
+		return nil, err
+	}
+	if txErrors, err = getInterfaceTxErrors(name); err != nil {
+		return nil, err
+	}
+	if rxErrors, err = getInterfaceRxErrors(name); err != nil {
 		return nil, err
 	}
 
 	return &interfaceStats{
-		State:  state,
-		Speed:  speed,
-		Duplex: duplex,
+		State:    state,
+		Speed:    speed,
+		Duplex:   duplex,
+		TxErrors: txErrors,
+		RxErrors: rxErrors,
 	}, nil
 }
 
@@ -83,4 +90,38 @@ func getInterfaceDuplex(device string) (string, error) {
 	}
 
 	return strings.ToUpper(strings.TrimSpace(string(bytes))), nil
+}
+
+func getInterfaceTxErrors(device string) (int, error) {
+	bytes, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/statistics/tx_errors", device))
+	if err != nil {
+		return -1, fmt.Errorf(
+			"interface: could not read /sys/class/net/<interface>/statistics/tx_errors file (%s)", err.Error())
+	}
+
+	rawErrorCount := strings.TrimSpace(string(bytes))
+	errorCount, err := strconv.ParseInt(rawErrorCount, 10, strconv.IntSize)
+	if err != nil {
+		return -1, fmt.Errorf("interface: could not parse interface tx errors [%s] as integer (%s)",
+			rawErrorCount, err.Error())
+	}
+
+	return int(errorCount), nil
+}
+
+func getInterfaceRxErrors(device string) (int, error) {
+	bytes, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/statistics/rx_errors", device))
+	if err != nil {
+		return -1, fmt.Errorf(
+			"interface: could not read /sys/class/net/<interface>/statistics/rx_errors file (%s)", err.Error())
+	}
+
+	rawErrorCount := strings.TrimSpace(string(bytes))
+	errorCount, err := strconv.ParseInt(rawErrorCount, 10, strconv.IntSize)
+	if err != nil {
+		return -1, fmt.Errorf("interface: could not parse interface tx errors [%s] as integer (%s)",
+			rawErrorCount, err.Error())
+	}
+
+	return int(errorCount), nil
 }
