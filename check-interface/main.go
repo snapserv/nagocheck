@@ -83,22 +83,25 @@ func (p *interfacePlugin) ParseFlags() {
 }
 
 func (p *interfacePlugin) Probe(warnings *nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
-	interfaceStats, err := getInterfaceStats(p.Name)
+	interfaceStats, err := getInterfaceStats(p.Name, warnings)
 	if err != nil {
 		return metrics, err
 	}
 
-	interfaceSpeed := float64(interfaceStats.Speed)
-	if interfaceStats.Speed == -1 {
-		interfaceSpeed = math.NaN()
+	intToFloat64 := func(value int) float64 {
+		if value == -1 {
+			return math.NaN()
+		}
+
+		return float64(value)
 	}
 
 	metrics = append(metrics,
 		nagopher.NewStringMetric("state", interfaceStats.State, ""),
 		nagopher.NewStringMetric("duplex", interfaceStats.Duplex, ""),
-		nagopher.NewNumericMetric("speed", interfaceSpeed, "M", nil, ""),
-		nagopher.NewNumericMetric("errors_tx", float64(interfaceStats.TxErrors), "c", nil, ""),
-		nagopher.NewNumericMetric("errors_rx", float64(interfaceStats.RxErrors), "c", nil, ""),
+		nagopher.NewNumericMetric("speed", intToFloat64(interfaceStats.Speed), "M", nil, ""),
+		nagopher.NewNumericMetric("errors_tx", intToFloat64(interfaceStats.TxErrors), "c", nil, ""),
+		nagopher.NewNumericMetric("errors_rx", intToFloat64(interfaceStats.RxErrors), "c", nil, ""),
 	)
 
 	return metrics, nil
@@ -116,13 +119,20 @@ func (s *interfaceSummary) Ok(resultCollection *nagopher.ResultCollection) strin
 	speedResult := resultCollection.GetByMetricName("speed")
 	if speedResult != nil {
 		interfaceSpeed = speedResult.Metric().ValueUnit()
+		if interfaceSpeed == "U" {
+			interfaceSpeed = "N/A"
+		}
+	}
+
+	interfaceDuplex := s.GetStringMetricValue(resultCollection, "duplex", "N/A")
+	if interfaceDuplex == "" {
+		interfaceDuplex = "N/A"
 	}
 
 	return fmt.Sprintf(
 		"State:%s Speed:%s Duplex:%s",
 		s.GetStringMetricValue(resultCollection, "state", "N/A"),
-		interfaceSpeed,
-		s.GetStringMetricValue(resultCollection, "duplex", "N/A"),
+		interfaceSpeed, interfaceDuplex,
 	)
 }
 
@@ -139,7 +149,7 @@ func main() {
 	check := nagopher.NewCheck("interface", newInterfaceSummary())
 	check.AttachResources(shared.NewPluginResource(plugin))
 	check.AttachContexts(
-		nagopher.NewStringMatchContext("state", []string{"UP"}, nagopher.StateWarning),
+		nagopher.NewStringMatchContext("state", []string{"UP"}, nagopher.StateCritical),
 		nagopher.NewStringMatchContext("duplex", plugin.ExpectedDuplex, nagopher.StateWarning),
 		nagopher.NewScalarContext("speed", plugin.SpeedRange, nil),
 		nagopher.NewDeltaContext("errors_tx", &store.PreviousTxErrors, deltaRange, nil),
