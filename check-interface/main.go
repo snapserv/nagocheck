@@ -30,10 +30,9 @@ import (
 type interfacePlugin struct {
 	*shared.BasePlugin
 
-	Name             string
-	SpeedRange       *nagopher.Range
-	speedRangeString string
-	ExpectedDuplex   []string
+	Name           string
+	SpeedRange     *nagopher.Range
+	ExpectedDuplex []string
 }
 
 type interfaceSummary struct {
@@ -59,10 +58,13 @@ func newInterfacePlugin() *interfacePlugin {
 	}
 }
 
-func (p *interfacePlugin) DefineFlags() {
+func (p *interfacePlugin) ParseFlags() {
+	var err error
+	var speedRangeString string
+
 	kingpin.Flag("speed", "Interface speed threshold formatted as Nagios range specifier.").
 		Short('s').
-		StringVar(&p.speedRangeString)
+		StringVar(&speedRangeString)
 
 	kingpin.Flag("duplex", "Return WARNING state when interface duplex does not match (e.g.: half, full).").
 		Short('d').
@@ -72,14 +74,10 @@ func (p *interfacePlugin) DefineFlags() {
 	kingpin.Arg("name", "Name of network interface.").
 		Required().
 		StringVar(&p.Name)
-}
 
-func (p *interfacePlugin) ParseFlags() {
-	var err error
+	p.BasePlugin.ParseFlags(false)
 
-	p.BasePlugin.ParseFlags()
-
-	if p.SpeedRange, err = nagopher.ParseRange(p.speedRangeString); err != nil {
+	if p.SpeedRange, err = nagopher.ParseRange(speedRangeString); err != nil {
 		panic(err.Error())
 	}
 }
@@ -130,20 +128,22 @@ func (s *interfaceSummary) Ok(resultCollection *nagopher.ResultCollection) strin
 
 func main() {
 	store := &interfaceStore{}
-
 	plugin := newInterfacePlugin()
-	plugin.DefineFlags()
-
 	plugin.ParseFlags()
+
+	deltaRange, err := nagopher.ParseRange("~:0")
+	if err != nil {
+		panic(err)
+	}
 
 	check := nagopher.NewCheck("interface", newInterfaceSummary())
 	check.AttachResources(shared.NewPluginResource(plugin))
 	check.AttachContexts(
 		nagopher.NewStringMatchContext("state", []string{"UP"}, nagopher.StateWarning),
 		nagopher.NewStringMatchContext("duplex", plugin.ExpectedDuplex, nagopher.StateWarning),
-		nagopher.NewScalarContext("speed", nil, plugin.SpeedRange),
-		nagopher.NewDeltaContext("errors_tx", &store.PreviousTxErrors, nil, nil),
-		nagopher.NewDeltaContext("errors_rx", &store.PreviousRxErrors, nil, nil),
+		nagopher.NewScalarContext("speed", plugin.SpeedRange, nil),
+		nagopher.NewDeltaContext("errors_tx", &store.PreviousTxErrors, deltaRange, nil),
+		nagopher.NewDeltaContext("errors_rx", &store.PreviousRxErrors, deltaRange, nil),
 	)
 
 	plugin.ExecutePersistent(check, "interface-"+plugin.Name, &store)

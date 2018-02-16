@@ -55,23 +55,29 @@ func NewPlugin() *BasePlugin {
 
 // ParseFlags adds several flag definitions for parsing followed by executing 'flag.Parse()'. Afterwards, the threshold
 // ranges (if given) are being parsed.
-func (p *BasePlugin) ParseFlags() {
+func (p *BasePlugin) ParseFlags(defineRanges bool) {
 	var err error
 	var warningRangeString, criticalRangeString string
 
 	kingpin.Flag("verbose", "Enable verbose plugin output.").
 		Short('v').BoolVar(&p.Verbose)
-	kingpin.Flag("warning", "Warning threshold formatted as Nagios range specifier.").
-		Short('w').StringVar(&warningRangeString)
-	kingpin.Flag("critical", "Critical threshold formatted as Nagios range specifier.").
-		Short('c').StringVar(&criticalRangeString)
+
+	if defineRanges {
+		kingpin.Flag("warning", "Warning threshold formatted as Nagios range specifier.").
+			Short('w').StringVar(&warningRangeString)
+		kingpin.Flag("critical", "Critical threshold formatted as Nagios range specifier.").
+			Short('c').StringVar(&criticalRangeString)
+	}
+
 	kingpin.Parse()
 
-	if p.WarningRange, err = nagopher.ParseRange(warningRangeString); err != nil {
-		panic(err.Error())
-	}
-	if p.CriticalRange, err = nagopher.ParseRange(criticalRangeString); err != nil {
-		panic(err.Error())
+	if defineRanges {
+		if p.WarningRange, err = nagopher.ParseRange(warningRangeString); err != nil {
+			panic(err.Error())
+		}
+		if p.CriticalRange, err = nagopher.ParseRange(criticalRangeString); err != nil {
+			panic(err.Error())
+		}
 	}
 }
 

@@ -42,7 +42,7 @@ func (p *loadPlugin) ParseFlags() {
 	kingpin.Flag("per-cpu", "Enable per-cpu metrics (divide load average by cpu count).").
 		BoolVar(&p.PerCPU)
 
-	p.BasePlugin.ParseFlags()
+	p.BasePlugin.ParseFlags(true)
 }
 
 func (p *loadPlugin) Probe(warnings *nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {

@@ -57,7 +57,7 @@ func (p *memoryPlugin) ParseFlags() {
 	kingpin.Flag("count-reclaimable", "Count reclaimable space (cached/buffers) as used.").
 		BoolVar(&p.CountReclaimable)
 
-	p.BasePlugin.ParseFlags()
+	p.BasePlugin.ParseFlags(true)
 }
 
 func (p *memoryPlugin) Probe(warnings *nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
