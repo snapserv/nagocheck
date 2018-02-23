@@ -20,12 +20,11 @@ package main
 
 import (
 	"fmt"
+	"github.com/snapserv/nagopher-checks/shared"
 	"io/ioutil"
 	"regexp"
 	"strconv"
 	"strings"
-
-	"github.com/snapserv/nagopher-checks/shared"
 )
 
 func getMemoryUsage() (*memoryUsage, error) {

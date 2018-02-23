@@ -20,18 +20,27 @@ package shared
 
 import (
 	"fmt"
-	"os"
-	"syscall"
-	"time"
-
 	"github.com/snapserv/nagopher"
 	"github.com/theckman/go-flock"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"os"
+	"syscall"
+	"time"
 )
+
+// KingpinInterface is a generic interface for kingpin, which is implemented by both "kingpin.Application" and
+// "kingpin.CmdClause". This allows us to define a single "DefineFlags" method in the "Plugin" interface, which can
+// handle both top-level and command-level flags.
+type KingpinInterface interface {
+	Arg(name, help string) *kingpin.ArgClause
+	Flag(name, help string) *kingpin.FlagClause
+}
 
 // Plugin represents a interface for all plugin types.
 type Plugin interface {
-	ParseFlags()
+	DefineFlags(kp KingpinInterface)
+	Execute()
+
 	Probe(*nagopher.WarningCollection) ([]nagopher.Metric, error)
 }
 
@@ -53,44 +62,30 @@ func NewPlugin() *BasePlugin {
 	return &BasePlugin{}
 }
 
-// ParseFlags adds several flag definitions for parsing followed by executing 'flag.Parse()'. Afterwards, the threshold
-// ranges (if given) are being parsed.
-func (p *BasePlugin) ParseFlags(defineRanges bool) {
-	var err error
-	var warningRangeString, criticalRangeString string
-
-	kingpin.Flag("verbose", "Enable verbose plugin output.").
+// DefineFlags defines common flags which should be provided by all plugins. It will also define flags for the default
+// ranges, unless p.useDefaultRanges is set to false.
+func (p *BasePlugin) DefineFlags(kp KingpinInterface, useDefaultRanges bool) {
+	kp.Flag("verbose", "Enable verbose plugin output.").
 		Short('v').BoolVar(&p.Verbose)
 
-	if defineRanges {
-		kingpin.Flag("warning", "Warning threshold formatted as Nagios range specifier.").
-			Short('w').StringVar(&warningRangeString)
-		kingpin.Flag("critical", "Critical threshold formatted as Nagios range specifier.").
-			Short('c').StringVar(&criticalRangeString)
-	}
-
-	kingpin.Parse()
-
-	if defineRanges {
-		if p.WarningRange, err = nagopher.ParseRange(warningRangeString); err != nil {
-			panic(err.Error())
-		}
-		if p.CriticalRange, err = nagopher.ParseRange(criticalRangeString); err != nil {
-			panic(err.Error())
-		}
+	if useDefaultRanges {
+		NagopherRangeVar(kp.Flag("warning", "Warning threshold formatted as Nagios range specifier.").
+			Short('w'), p.WarningRange)
+		NagopherRangeVar(kp.Flag("critical", "Critical threshold formatted as Nagios range specifier.").
+			Short('c'), p.CriticalRange)
 	}
 }
 
-// Execute is a helper method which creates a new nagopher 'Runtime', executes a check and exits
-func (p *BasePlugin) Execute(check *nagopher.Check) {
+// ExecuteCheck is a helper method which creates a new nagopher 'Runtime', executes a check and exits
+func (p *BasePlugin) ExecuteCheck(check *nagopher.Check) {
 	runtime := nagopher.NewRuntime(p.Verbose)
 	runtime.ExecuteAndExit(check)
 }
 
-// ExecutePersistent is a helper method which extends Execute() with flock (based on given unique key, which should be
+// ExecutePersistentCheck is a helper method which extends Execute() with flock (based on given unique key, which should be
 // chosen wisely) and a persistent store, which is also named by the unique key passed. This is especially useful when
 // used with contexts like 'DeltaContext', which compare the current measurement against a previously measurement.
-func (p *BasePlugin) ExecutePersistent(check *nagopher.Check, uniqueKey string, store interface{}) {
+func (p *BasePlugin) ExecutePersistentCheck(check *nagopher.Check, uniqueKey string, store interface{}) {
 	// Prefix unique key with 'nagopher-checks.'
 	uniqueKey = "nagopher-checks." + uniqueKey
 

@@ -20,11 +20,10 @@ package main
 
 import (
 	"fmt"
-	"math"
-
 	"github.com/snapserv/nagopher"
 	"github.com/snapserv/nagopher-checks/shared"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"math"
 )
 
 type interfacePlugin struct {
@@ -58,28 +57,38 @@ func newInterfacePlugin() *interfacePlugin {
 	}
 }
 
-func (p *interfacePlugin) ParseFlags() {
-	var err error
-	var speedRangeString string
+func (p *interfacePlugin) DefineFlags(kp shared.KingpinInterface) {
+	shared.NagopherRangeVar(kp.Flag("speed",
+		"Interface speed threshold formatted as Nagios range specifier.").Short('s'), p.SpeedRange)
 
-	kingpin.Flag("speed", "Interface speed threshold formatted as Nagios range specifier.").
-		Short('s').
-		StringVar(&speedRangeString)
-
-	kingpin.Flag("duplex", "Return WARNING state when interface duplex does not match (e.g.: half, full).").
+	kp.Flag("duplex", "Return WARNING state when interface duplex does not match (e.g.: half, full).").
 		Short('d').
 		HintOptions("half", "full").
 		StringsVar(&p.ExpectedDuplex)
 
-	kingpin.Arg("name", "Name of network interface.").
+	kp.Arg("name", "Name of network interface.").
 		Required().
 		StringVar(&p.Name)
+}
 
-	p.BasePlugin.ParseFlags(false)
-
-	if p.SpeedRange, err = nagopher.ParseRange(speedRangeString); err != nil {
-		panic(err.Error())
+func (p *interfacePlugin) Execute() {
+	store := &interfaceStore{}
+	deltaRange, err := nagopher.ParseRange("~:0")
+	if err != nil {
+		panic(err)
 	}
+
+	check := nagopher.NewCheck("interface", newInterfaceSummary())
+	check.AttachResources(shared.NewPluginResource(p))
+	check.AttachContexts(
+		nagopher.NewStringMatchContext("state", []string{"UP"}, nagopher.StateCritical),
+		nagopher.NewStringMatchContext("duplex", p.ExpectedDuplex, nagopher.StateWarning),
+		nagopher.NewScalarContext("speed", p.SpeedRange, nil),
+		nagopher.NewDeltaContext("errors_tx", &store.PreviousTxErrors, deltaRange, nil),
+		nagopher.NewDeltaContext("errors_rx", &store.PreviousRxErrors, deltaRange, nil),
+	)
+
+	p.ExecutePersistentCheck(check, "interface-"+p.Name, &store)
 }
 
 func (p *interfacePlugin) Probe(warnings *nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
@@ -137,24 +146,8 @@ func (s *interfaceSummary) Ok(resultCollection *nagopher.ResultCollection) strin
 }
 
 func main() {
-	store := &interfaceStore{}
 	plugin := newInterfacePlugin()
-	plugin.ParseFlags()
-
-	deltaRange, err := nagopher.ParseRange("~:0")
-	if err != nil {
-		panic(err)
-	}
-
-	check := nagopher.NewCheck("interface", newInterfaceSummary())
-	check.AttachResources(shared.NewPluginResource(plugin))
-	check.AttachContexts(
-		nagopher.NewStringMatchContext("state", []string{"UP"}, nagopher.StateCritical),
-		nagopher.NewStringMatchContext("duplex", plugin.ExpectedDuplex, nagopher.StateWarning),
-		nagopher.NewScalarContext("speed", plugin.SpeedRange, nil),
-		nagopher.NewDeltaContext("errors_tx", &store.PreviousTxErrors, deltaRange, nil),
-		nagopher.NewDeltaContext("errors_rx", &store.PreviousRxErrors, deltaRange, nil),
-	)
-
-	plugin.ExecutePersistent(check, "interface-"+plugin.Name, &store)
+	plugin.DefineFlags(kingpin.CommandLine)
+	kingpin.Parse()
+	plugin.Execute()
 }

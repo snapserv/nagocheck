@@ -20,11 +20,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/snapserv/nagopher"
 	"io/ioutil"
 	"strconv"
 	"strings"
-
-	"github.com/snapserv/nagopher"
 )
 
 func getInterfaceStats(name string, warnings *nagopher.WarningCollection) (*interfaceStats, error) {

@@ -20,12 +20,11 @@ package main
 
 import (
 	"fmt"
-	"math"
-	"strconv"
-
 	"github.com/snapserv/nagopher"
 	"github.com/snapserv/nagopher-checks/shared"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"math"
+	"strconv"
 )
 
 type memoryPlugin struct {
@@ -53,11 +52,29 @@ func newMemoryPlugin() *memoryPlugin {
 	}
 }
 
-func (p *memoryPlugin) ParseFlags() {
-	kingpin.Flag("count-reclaimable", "Count reclaimable space (cached/buffers) as used.").
+func (p *memoryPlugin) DefineFlags(kp shared.KingpinInterface) {
+	kp.Flag("count-reclaimable", "Count reclaimable space (cached/buffers) as used.").
 		BoolVar(&p.CountReclaimable)
+}
 
-	p.BasePlugin.ParseFlags(true)
+func (p *memoryPlugin) Execute() {
+	check := nagopher.NewCheck("memory", newMemorySummary())
+	check.AttachResources(shared.NewPluginResource(p))
+	check.AttachContexts(
+		nagopher.NewScalarContext(
+			"usage",
+			p.WarningRange,
+			p.CriticalRange,
+		),
+
+		nagopher.NewScalarContext("active", nil, nil),
+		nagopher.NewScalarContext("inactive", nil, nil),
+		nagopher.NewScalarContext("buffers", nil, nil),
+		nagopher.NewScalarContext("cached", nil, nil),
+		nagopher.NewScalarContext("total", nil, nil),
+	)
+
+	p.ExecuteCheck(check)
 }
 
 func (p *memoryPlugin) Probe(warnings *nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
@@ -150,23 +167,7 @@ func (s *memorySummary) Ok(resultCollection *nagopher.ResultCollection) string {
 
 func main() {
 	plugin := newMemoryPlugin()
-	plugin.ParseFlags()
-
-	check := nagopher.NewCheck("memory", newMemorySummary())
-	check.AttachResources(shared.NewPluginResource(plugin))
-	check.AttachContexts(
-		nagopher.NewScalarContext(
-			"usage",
-			plugin.WarningRange,
-			plugin.CriticalRange,
-		),
-
-		nagopher.NewScalarContext("active", nil, nil),
-		nagopher.NewScalarContext("inactive", nil, nil),
-		nagopher.NewScalarContext("buffers", nil, nil),
-		nagopher.NewScalarContext("cached", nil, nil),
-		nagopher.NewScalarContext("total", nil, nil),
-	)
-
-	plugin.Execute(check)
+	plugin.DefineFlags(kingpin.CommandLine)
+	kingpin.Parse()
+	plugin.Execute()
 }

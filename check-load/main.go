@@ -19,11 +19,10 @@
 package main
 
 import (
-	"runtime"
-
 	"github.com/snapserv/nagopher"
 	"github.com/snapserv/nagopher-checks/shared"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"runtime"
 )
 
 type loadPlugin struct {
@@ -38,11 +37,22 @@ func newLoadPlugin() *loadPlugin {
 	}
 }
 
-func (p *loadPlugin) ParseFlags() {
-	kingpin.Flag("per-cpu", "Enable per-cpu metrics (divide load average by cpu count).").
-		BoolVar(&p.PerCPU)
+func (p *loadPlugin) DefineFlags(kp shared.KingpinInterface) {
+	kp.Flag("per-cpu", "Enable per-cpu metrics (divide load average by cpu count).").BoolVar(&p.PerCPU)
+}
 
-	p.BasePlugin.ParseFlags(true)
+func (p *loadPlugin) Execute() {
+	check := nagopher.NewCheck("load", nagopher.NewBaseSummary())
+	check.AttachResources(shared.NewPluginResource(p))
+	check.AttachContexts(
+		nagopher.NewScalarContext(
+			"load",
+			p.WarningRange,
+			p.CriticalRange,
+		),
+	)
+
+	p.ExecuteCheck(check)
 }
 
 func (p *loadPlugin) Probe(warnings *nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
@@ -74,17 +84,7 @@ func (p *loadPlugin) Probe(warnings *nagopher.WarningCollection) (metrics []nago
 
 func main() {
 	plugin := newLoadPlugin()
-	plugin.ParseFlags()
-
-	check := nagopher.NewCheck("load", nagopher.NewBaseSummary())
-	check.AttachResources(shared.NewPluginResource(plugin))
-	check.AttachContexts(
-		nagopher.NewScalarContext(
-			"load",
-			plugin.WarningRange,
-			plugin.CriticalRange,
-		),
-	)
-
-	plugin.Execute(check)
+	plugin.DefineFlags(kingpin.CommandLine)
+	kingpin.Parse()
+	plugin.Execute()
 }

@@ -20,11 +20,10 @@ package shared
 
 import (
 	"encoding/json"
+	"github.com/fabiokung/shm"
 	"io/ioutil"
 	"os"
 	"syscall"
-
-	"github.com/fabiokung/shm"
 )
 
 // LoadPersistentStore loads a persistent shm-based store, which can represent any structure/type as long as it can be
