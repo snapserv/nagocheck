@@ -1,6 +1,11 @@
 os: linux
 language: go
 
+addons:
+  apt:
+    packages:
+      - rpm
+
 go:
   - 1.8.x
   - 1.9.x

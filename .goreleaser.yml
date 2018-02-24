@@ -10,16 +10,27 @@ builds:
       - amd64
 
     main: ./check-frr
-    binary: check-frr
+    binary: nc-check-frr
 
   - <<: *build_defaults
     main: ./check-interface
-    binary: check-interface
+    binary: nc-check-interface
 
   - <<: *build_defaults
     main: ./check-load
-    binary: check-load
+    binary: nc-check-load
 
   - <<: *build_defaults
     main: ./check-memory
-    binary: check-memory
+    binary: nc-check-memory
+
+nfpm:
+  vendor: Pascal Mathis
+  maintainer: Pascal Mathis <mail@pascalmathis.com>
+  homepage: https://www.pascalmathis.com/
+  description: Reliable and lightweight Nagios plugins written in Go
+  license: GPL-3.0
+  bindir: /usr/local/bin
+  formats:
+    - deb
+    - rpm
