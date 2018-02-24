@@ -146,9 +146,10 @@ func (p *bgpNeighborPlugin) Probe(warnings *nagopher.WarningCollection) (metrics
 		return metrics, err
 	}
 
+	lastStateChangeSeconds := shared.Round(neighbor.lastStateChange.Seconds(), 0)
 	metrics = append(metrics,
 		nagopher.NewStringMetric("state", neighbor.OperationalState, ""),
-		nagopher.NewNumericMetric("last_state_change", neighbor.lastStateChange.Round(time.Second).Seconds(),
+		nagopher.NewNumericMetric("last_state_change", lastStateChangeSeconds,
 			"s", nil, ""),
 
 		nagopher.NewStringMetric("reset_reason", neighbor.ResetReason, ""),
