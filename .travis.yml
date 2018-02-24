@@ -1,3 +1,4 @@
+os: linux
 language: go
 
 go:
@@ -11,7 +12,7 @@ install:
 script:
   - make lint
   - make test
-  # - make coverage
+  # TODO: - make coverage
 
 deploy:
   - provider: script
@@ -19,4 +20,4 @@ deploy:
     script: make release
     on:
       tags: true
-      condition: $TRAVIS_OS_NAME = linux
+      go: 1.10.x
