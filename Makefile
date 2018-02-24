@@ -5,6 +5,9 @@ GOVERALLS      = goveralls
 GOVERALLS_ARGS = -service=travis-ci
 GORELEASER     = goreleaser
 
+BUILD_DATE := $(shell date +'%Y-%m-%d_%H:%M:%S')
+BUILD_COMMIT := $(shell git show -q --format='%H' HEAD)
+
 PACKAGE = nagopher-checks
 TARGET  = $(CURDIR)/$(PACKAGE)
 PKGS    = $(shell $(GO) list ./... | grep -v "$(PACKAGE)/shared")
@@ -14,7 +17,9 @@ all: lint test build
 
 .PHONY: build
 build: deps
-	$(GO) build -o $(TARGET) .
+	$(GO) build \
+		-ldflags "-X main.BuildDate=$(BUILD_DATE) -X main.BuildCommit=$(BUILD_COMMIT)" \
+		-o $(TARGET) .
 
 .PHONY: deps
 deps:

@@ -2,7 +2,7 @@ builds:
   - main: ./
     binary: nagopher-checks
     flags: -a -tags netgo
-    ldflags: -s -w
+    ldflags: -s -w -X main.BuildVersion={{.Version}} -X main.BuildCommit={{.Commit}} -X main.BuildDate={{.Date}}
 
     env:
       - CGO_ENABLED=0

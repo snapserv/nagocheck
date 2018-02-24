@@ -24,7 +24,15 @@ import (
 	"github.com/snapserv/nagopher-checks/mod-system"
 	"github.com/snapserv/nagopher-checks/shared"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"runtime"
 	"strings"
+)
+
+// Build variables, automatically set during compilation
+var (
+	BuildVersion = "SNAPSHOT"
+	BuildCommit  = "N/A"
+	BuildDate    = "N/A"
 )
 
 func main() {
@@ -43,7 +51,10 @@ func main() {
 		}
 	}
 
+	kingpin.Version(fmt.Sprintf("nagopher-checks, version %s (commit: %s)\nbuild date: %s, runtime: %s",
+		BuildVersion, BuildCommit, BuildDate, runtime.Version()))
 	commandParts := strings.Split(kingpin.Parse(), " ")
+
 	moduleCommand, err := moduleCommands.GetByName(commandParts[0])
 	if err != nil {
 		panic(err)
