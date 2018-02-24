@@ -20,6 +20,7 @@ package modsystem
 
 import "github.com/snapserv/nagopher-checks/shared"
 
+// GetModuleCommand returns a module command declaration for this check module
 func GetModuleCommand() shared.ModuleCommand {
 	return shared.ModuleCommand{
 		Name:        "system",
