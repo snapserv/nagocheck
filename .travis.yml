@@ -5,6 +5,18 @@ go:
   - 1.9.x
   - 1.10.x
 
+install:
+  - make devel-deps
+
 script:
-  - make all
+  - make lint
+  - make test
   - make coverage
+
+deploy:
+  - provider: script
+    skip_cleanup: true
+    script: make release
+    on:
+      tags: true
+      condition: $TRAVIS_OS_NAME = linux

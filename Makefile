@@ -3,6 +3,7 @@ GOFMT          = go fmt
 GOLINT         = golint
 GOVERALLS      = goveralls
 GOVERALLS_ARGS = -service=travis-ci
+GORELEASER     = goreleaser
 
 PACKAGE = nagopher-checks
 TARGET  = $(CURDIR)/bin
@@ -25,6 +26,7 @@ deps:
 devel-deps: deps
 	$(GO) get github.com/golang/lint/golint
 	$(GO) get github.com/mattn/goveralls
+	$(GO) get github.com/goreleaser/goreleaser
 
 .PHONY: lint
 lint: devel-deps
@@ -38,3 +40,7 @@ test: devel-deps
 .PHONY: coverage
 coverage: devel-deps
 	$(GOVERALLS) $(GOVERALLS_ARGS)
+
+.PHONY: release
+release: devel-deps
+	$(GORELEASER)

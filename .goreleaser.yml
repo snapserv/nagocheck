@@ -1,0 +1,25 @@
+builds:
+  - &build_defaults
+    flags: -a -tags netgo
+    ldflags: -s -w
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+
+    main: ./check-frr
+    binary: check-frr
+
+  - <<: *build_defaults
+    main: ./check-interface
+    binary: check-interface
+
+  - <<: *build_defaults
+    main: ./check-load
+    binary: check-load
+
+  - <<: *build_defaults
+    main: ./check-memory
+    binary: check-memory
