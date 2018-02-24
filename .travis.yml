@@ -11,7 +11,7 @@ install:
 script:
   - make lint
   - make test
-  - make coverage
+  # - make coverage
 
 deploy:
   - provider: script
