@@ -16,12 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package main
+package modsystem
 
 import (
 	"github.com/snapserv/nagopher"
 	"github.com/snapserv/nagopher-checks/shared"
-	"gopkg.in/alecthomas/kingpin.v2"
 	"runtime"
 )
 
@@ -80,11 +79,4 @@ func (p *loadPlugin) Probe(warnings *nagopher.WarningCollection) (metrics []nago
 	}
 
 	return metrics, nil
-}
-
-func main() {
-	plugin := newLoadPlugin()
-	plugin.DefineFlags(kingpin.CommandLine)
-	kingpin.Parse()
-	plugin.Execute()
 }

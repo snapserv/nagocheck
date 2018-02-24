@@ -16,30 +16,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package main
+package modsystem
 
-import (
-	"fmt"
-	"io/ioutil"
-	"strconv"
-	"strings"
-)
+import "github.com/snapserv/nagopher-checks/shared"
 
-func getLoadAverages() (loadAverages [3]float64, _ error) {
-	bytes, err := ioutil.ReadFile("/proc/loadavg")
-	if err != nil {
-		return loadAverages, fmt.Errorf("load: could not read /proc/loadavg file (%s)", err.Error())
+func GetModuleCommand() shared.ModuleCommand {
+	return shared.ModuleCommand{
+		Name:        "system",
+		Description: "Operating System",
+		PluginCommands: shared.PluginCommands{
+			{
+				Name:        "interface",
+				Description: "Network Interface",
+				Plugin:      newInterfacePlugin(),
+			},
+			{
+				Name:        "load",
+				Description: "Load Average",
+				Plugin:      newLoadPlugin(),
+			},
+			{
+				Name:        "memory",
+				Description: "Memory Usage",
+				Plugin:      newMemoryPlugin(),
+			},
+		},
 	}
-
-	values := strings.Split(string(bytes), " ")
-	for i := 0; i < 3; i++ {
-		value, err := strconv.ParseFloat(values[i], strconv.IntSize)
-		if err != nil {
-			return loadAverages, fmt.Errorf("load: could not parse [%s] as float (%s)", values[i], err.Error())
-		}
-
-		loadAverages[i] = value
-	}
-
-	return loadAverages, nil
 }

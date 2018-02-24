@@ -6,7 +6,7 @@ GOVERALLS_ARGS = -service=travis-ci
 GORELEASER     = goreleaser
 
 PACKAGE = nagopher-checks
-TARGET  = $(CURDIR)/bin
+TARGET  = $(CURDIR)/$(PACKAGE)
 PKGS    = $(shell $(GO) list ./... | grep -v "$(PACKAGE)/shared")
 
 .PHONY: all
@@ -14,9 +14,7 @@ all: lint test build
 
 .PHONY: build
 build: deps
-	for pkg in $(PKGS); do \
-		$(GO) build -o "$(TARGET)/$$(basename "$$pkg")" $$pkg; \
-	done
+	$(GO) build -o $(TARGET) .
 
 .PHONY: deps
 deps:

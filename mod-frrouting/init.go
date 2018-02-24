@@ -16,17 +16,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package main
+package modfrrouting
 
-import "gopkg.in/alecthomas/kingpin.v2"
+import "github.com/snapserv/nagopher-checks/shared"
 
-func main() {
-	bgpNeighborCommand := kingpin.Command("bgp-neighbor", "FRRouting BGPd: Neighbor Check")
-	bgpNeighborPlugin := newBgpNeighborPlugin()
-	bgpNeighborPlugin.DefineFlags(bgpNeighborCommand)
-
-	switch kingpin.Parse() {
-	case "bgp-neighbor":
-		bgpNeighborPlugin.Execute()
+func GetModuleCommand() shared.ModuleCommand {
+	return shared.ModuleCommand{
+		Name:        "frrouting",
+		Description: "FRRouting",
+		PluginCommands: shared.PluginCommands{
+			{
+				Name:        "bgp-neighbor",
+				Description: "BGP Neighbor",
+				Plugin:      newBgpNeighborPlugin(),
+			},
+		},
 	}
 }

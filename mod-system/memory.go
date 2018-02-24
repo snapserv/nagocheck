@@ -16,13 +16,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package main
+package modsystem
 
 import (
 	"fmt"
 	"github.com/snapserv/nagopher"
 	"github.com/snapserv/nagopher-checks/shared"
-	"gopkg.in/alecthomas/kingpin.v2"
 	"math"
 	"strconv"
 )
@@ -163,11 +162,4 @@ func (s *memorySummary) Ok(resultCollection *nagopher.ResultCollection) string {
 		s.formatSize(s.getResultMetricValue(resultCollection, "buffers")),
 		s.formatSize(s.getResultMetricValue(resultCollection, "cached")),
 	)
-}
-
-func main() {
-	plugin := newMemoryPlugin()
-	plugin.DefineFlags(kingpin.CommandLine)
-	kingpin.Parse()
-	plugin.Execute()
 }

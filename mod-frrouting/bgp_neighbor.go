@@ -16,13 +16,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package main
+package modfrrouting
 
 import (
 	"encoding/json"
 	"fmt"
 	"github.com/snapserv/nagopher"
-	"github.com/snapserv/nagopher-checks/check-frr/goffr"
+	"github.com/snapserv/nagopher-checks/mod-frrouting/goffr"
 	"github.com/snapserv/nagopher-checks/shared"
 	"math"
 	"strings"

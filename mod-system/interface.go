@@ -16,13 +16,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package main
+package modsystem
 
 import (
 	"fmt"
 	"github.com/snapserv/nagopher"
 	"github.com/snapserv/nagopher-checks/shared"
-	"gopkg.in/alecthomas/kingpin.v2"
 	"math"
 )
 
@@ -143,11 +142,4 @@ func (s *interfaceSummary) Ok(resultCollection *nagopher.ResultCollection) strin
 		s.GetStringMetricValue(resultCollection, "state", "N/A"),
 		interfaceSpeed, interfaceDuplex,
 	)
-}
-
-func main() {
-	plugin := newInterfacePlugin()
-	plugin.DefineFlags(kingpin.CommandLine)
-	kingpin.Parse()
-	plugin.Execute()
 }
