@@ -17,7 +17,7 @@ script:
 deploy:
   - provider: script
     skip_cleanup: true
-    script: make release
+    script: curl -sL http://git.io/goreleaser | bash
     on:
       tags: true
       condition: $TRAVIS_GO_VERSION =~ ^1\.10(\.[0-9]+)?$
