@@ -20,4 +20,4 @@ deploy:
     script: make release
     on:
       tags: true
-      go: 1.10.x
+      condition: $TRAVIS_GO_VERSION =~ ^1\.10(\.[0-9]+)?$
