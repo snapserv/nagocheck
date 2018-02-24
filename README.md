@@ -1,10 +1,11 @@
 # nagopher-checks
 
-[![License](http://img.shields.io/badge/license-GPL--3.0+-blue.svg)](https://github.com/snapserv/nagopher-checks/LICENSE.txt)
-[![Go Compatibility](https://img.shields.io/badge/golang-1.8_--_1.10-brightgreen.svg)](#)
-[![GitHub issues](https://img.shields.io/github/issues/snapserv/nagopher-checks.svg)](https://github.com/snapserv/nagopher-checks/issues)
-[![Coverage Status](https://coveralls.io/repos/github/snapserv/nagopher-checks/badge.svg?branch=master)](https://coveralls.io/github/snapserv/nagopher-checks?branch=master)
-[![Copyright](http://img.shields.io/badge/copyright-Pascal_Mathis-lightgrey.svg)](#)
+[![Project Release](https://img.shields.io/github/release/snapserv/nagopher-checks.svg)](https://github.com/snapserv/nagopher-checks/releases/latest)
+[![Project License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](https://github.com/snapserv/nagopher-checks/LICENSE.txt)
+[![Go Version Compatibility](https://img.shields.io/badge/go_version-1.8_--_1.10-brightgreen.svg)](https://golang.org/)
+[![Travis CI Build Status](https://img.shields.io/travis/snapserv/nagopher-checks/master.svg)](https://travis-ci.org/snapserv/nagopher-checks)
+[![Coveralls Coverage Status](https://img.shields.io/coveralls/github/snapserv/nagopher-checks/master.svg)](https://coveralls.io/github/snapserv/nagopher-checks?branch=master)
+[![Project Copyright](http://img.shields.io/badge/copyright-Pascal_Mathis-lightgrey.svg)](https://www.pascalmathis.com/)
 
 ### Table of Contents
 
