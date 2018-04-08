@@ -132,6 +132,7 @@ func (p *bgpNeighborPlugin) Execute() {
 		nagopher.NewStringMatchContext("state", []string{"ESTABLISHED"}, problemState),
 		nagopher.NewScalarContext("last_state_change", nil, nil),
 		nagopher.NewScalarContext("prefix_limit_usage", p.PrefixLimitRange, nil),
+		nagopher.NewScalarContext("prefix_count", nil, nil),
 
 		nagopher.NewContext("notification_reason", ""),
 		nagopher.NewContext("reset_reason", ""),
@@ -151,6 +152,8 @@ func (p *bgpNeighborPlugin) Probe(warnings *nagopher.WarningCollection) (metrics
 		nagopher.NewStringMetric("state", neighbor.OperationalState, ""),
 		nagopher.NewNumericMetric("last_state_change", lastStateChangeSeconds,
 			"s", nil, ""),
+		nagopher.NewNumericMetric("prefix_count", float64(neighbor.prefixUsageTotal),
+			"", nil, ""),
 
 		nagopher.NewStringMetric("reset_reason", neighbor.ResetReason, ""),
 		nagopher.NewStringMetric("notification_reason", neighbor.NotificationReason, ""),
