@@ -112,7 +112,7 @@ func (p *bgpNeighborPlugin) DefineFlags(kp shared.KingpinInterface) {
 		kp.Flag("prefix-limit", "Range for prefix limit usage given as Nagios range specifier. Plugin "+
 			"will return WARNING state in case the range does not match. If no prefix limit was configured, this "+
 			" check gets ignored.").
-			Short('l'), p.PrefixLimitRange)
+			Short('l'), &p.PrefixLimitRange)
 }
 
 func (p *bgpNeighborPlugin) Execute() {

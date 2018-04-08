@@ -58,7 +58,7 @@ func newInterfacePlugin() *interfacePlugin {
 
 func (p *interfacePlugin) DefineFlags(kp shared.KingpinInterface) {
 	shared.NagopherRangeVar(kp.Flag("speed",
-		"Interface speed threshold formatted as Nagios range specifier.").Short('s'), p.SpeedRange)
+		"Interface speed threshold formatted as Nagios range specifier.").Short('s'), &p.SpeedRange)
 
 	kp.Flag("duplex", "Return WARNING state when interface duplex does not match (e.g.: half, full).").
 		Short('d').

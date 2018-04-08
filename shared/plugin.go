@@ -70,9 +70,9 @@ func (p *BasePlugin) DefineFlags(kp KingpinInterface, useDefaultRanges bool) {
 
 	if useDefaultRanges {
 		NagopherRangeVar(kp.Flag("warning", "Warning threshold formatted as Nagios range specifier.").
-			Short('w'), p.WarningRange)
+			Short('w'), &p.WarningRange)
 		NagopherRangeVar(kp.Flag("critical", "Critical threshold formatted as Nagios range specifier.").
-			Short('c'), p.CriticalRange)
+			Short('c'), &p.CriticalRange)
 	}
 }
 
