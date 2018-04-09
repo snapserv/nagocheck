@@ -266,7 +266,7 @@ func (s *bgpNeighborSummary) Ok(resultCollection *nagopher.ResultCollection) str
 		if lastStateChange > 0 {
 			duration, err := time.ParseDuration(fmt.Sprintf("%ds", int(lastStateChange)))
 			if err == nil {
-				lastStateChangeString = duration.String()
+				lastStateChangeString = shared.DurationString(duration)
 			}
 		} else {
 			lastStateChangeString = "always"

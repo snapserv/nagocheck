@@ -74,3 +74,15 @@ func RetryDuring(timeout time.Duration, delay time.Duration, function func() err
 		time.Sleep(delay)
 	}
 }
+
+// DurationString outputs a time.Duration variable in the same way as time.Duration.String() with additional support for
+// days instead of just hours, minutes and seconds.
+func DurationString(duration time.Duration) string {
+	daysDuration := duration.Truncate(24 * time.Hour)
+	days := int64(daysDuration.Hours() / 24)
+	if days > 0 {
+		return fmt.Sprintf("%dd%s", days, (duration - daysDuration).String())
+	}
+
+	return duration.String()
+}
