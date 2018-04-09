@@ -52,6 +52,8 @@ func newMemoryPlugin() *memoryPlugin {
 }
 
 func (p *memoryPlugin) DefineFlags(kp shared.KingpinInterface) {
+	p.BasePlugin.DefineFlags(kp, true)
+
 	kp.Flag("count-reclaimable", "Count reclaimable space (cached/buffers) as used.").
 		BoolVar(&p.CountReclaimable)
 }
