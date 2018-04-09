@@ -211,7 +211,7 @@ func (p *bgpNeighborPlugin) fetchStatistics() (*bgpNeighborStats, error) {
 
 	// Unmarshal the JSON data into our neighbor statistics struct
 	json.Unmarshal([]byte(rawData), &neighbors)
-	neighbor, ok := neighbors[p.NeighborAddress]
+	neighbor, ok := neighbors[strings.ToLower(p.NeighborAddress)]
 	if !ok {
 		return nil, fmt.Errorf("bgp_neighbor: neighbor [%s] not found", p.NeighborAddress)
 	}
