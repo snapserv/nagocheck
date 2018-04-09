@@ -37,6 +37,8 @@ func newLoadPlugin() *loadPlugin {
 }
 
 func (p *loadPlugin) DefineFlags(kp shared.KingpinInterface) {
+	p.BasePlugin.DefineFlags(kp, true)
+
 	kp.Flag("per-cpu", "Enable per-cpu metrics (divide load average by cpu count).").BoolVar(&p.PerCPU)
 }
 
