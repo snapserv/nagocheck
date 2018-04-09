@@ -78,11 +78,20 @@ func RetryDuring(timeout time.Duration, delay time.Duration, function func() err
 // DurationString outputs a time.Duration variable in the same way as time.Duration.String() with additional support for
 // days instead of just hours, minutes and seconds.
 func DurationString(duration time.Duration) string {
-	daysDuration := duration.Truncate(24 * time.Hour)
+	daysDuration := compatTimeTruncate(duration, 24*time.Hour)
 	days := int64(daysDuration.Hours() / 24)
 	if days > 0 {
 		return fmt.Sprintf("%dd%s", days, (duration - daysDuration).String())
 	}
 
 	return duration.String()
+}
+
+// compatTimeTruncate is a compatibility function for time.Truncate(), which is not supported in Go 1.8
+func compatTimeTruncate(d time.Duration, m time.Duration) time.Duration {
+	if d <= 0 {
+		return d
+	}
+
+	return d - d%m
 }
