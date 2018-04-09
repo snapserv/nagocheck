@@ -57,6 +57,8 @@ func newInterfacePlugin() *interfacePlugin {
 }
 
 func (p *interfacePlugin) DefineFlags(kp shared.KingpinInterface) {
+	p.BasePlugin.DefineFlags(kp, false)
+
 	shared.NagopherRangeVar(kp.Flag("speed",
 		"Interface speed threshold formatted as Nagios range specifier.").Short('s'), &p.SpeedRange)
 
