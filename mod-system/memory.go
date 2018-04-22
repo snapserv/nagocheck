@@ -155,7 +155,7 @@ func (s *memorySummary) Ok(resultCollection *nagopher.ResultCollection) string {
 
 		strconv.FormatFloat(
 			s.getResultMetricValue(resultCollection, "usage"),
-			'f', -1, strconv.IntSize,
+			'f', 2, strconv.IntSize,
 		),
 
 		s.formatSize(s.getResultMetricValue(resultCollection, "total")),
