@@ -126,29 +126,6 @@ func (s *memorySummary) getResultMetricValue(resultCollection *nagopher.ResultCo
 	return math.NaN()
 }
 
-func (s *memorySummary) formatSize(size float64) string {
-	units := []struct {
-		Divisor float64
-		Suffix  string
-	}{
-		{math.Pow(1024, 3), "T"},
-		{math.Pow(1024, 2), "G"},
-		{math.Pow(1024, 1), "M"},
-		{math.Pow(1024, 0), "K"},
-	}
-
-	if !math.IsNaN(size) {
-		for _, unit := range units {
-			if size > unit.Divisor*100 {
-				value := shared.Round(size/unit.Divisor, 2)
-				return strconv.FormatFloat(value, 'f', 2, strconv.IntSize) + unit.Suffix
-			}
-		}
-	}
-
-	return "N/A"
-}
-
 func (s *memorySummary) Ok(resultCollection *nagopher.ResultCollection) string {
 	return fmt.Sprintf(
 		"%s%% used - Total:%s Active:%s Inactive:%s Buffers:%s Cached:%s",
@@ -158,10 +135,10 @@ func (s *memorySummary) Ok(resultCollection *nagopher.ResultCollection) string {
 			'f', 2, strconv.IntSize,
 		),
 
-		s.formatSize(s.getResultMetricValue(resultCollection, "total")),
-		s.formatSize(s.getResultMetricValue(resultCollection, "active")),
-		s.formatSize(s.getResultMetricValue(resultCollection, "inactive")),
-		s.formatSize(s.getResultMetricValue(resultCollection, "buffers")),
-		s.formatSize(s.getResultMetricValue(resultCollection, "cached")),
+		shared.FormatBinarySize(s.getResultMetricValue(resultCollection, "total")),
+		shared.FormatBinarySize(s.getResultMetricValue(resultCollection, "active")),
+		shared.FormatBinarySize(s.getResultMetricValue(resultCollection, "inactive")),
+		shared.FormatBinarySize(s.getResultMetricValue(resultCollection, "buffers")),
+		shared.FormatBinarySize(s.getResultMetricValue(resultCollection, "cached")),
 	)
 }

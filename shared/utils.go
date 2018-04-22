@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"strconv"
 	"time"
 )
 
@@ -96,4 +97,30 @@ func compatTimeTruncate(d time.Duration, m time.Duration) time.Duration {
 	}
 
 	return d - d%m
+}
+
+// FormatBinarySize expects a size given in bytes and returns a formatted string with a precision of two with the most
+// appropriate unit, which can either be B, K, M, G or T.
+func FormatBinarySize(size float64) string {
+	units := []struct {
+		Divisor float64
+		Suffix  string
+	}{
+		{math.Pow(1024, 4), "T"},
+		{math.Pow(1024, 3), "G"},
+		{math.Pow(1024, 2), "M"},
+		{math.Pow(1024, 1), "K"},
+		{math.Pow(1024, 0), "B"},
+	}
+
+	if !math.IsNaN(size) {
+		for _, unit := range units {
+			if size > unit.Divisor*100 {
+				value := Round(size/unit.Divisor, 2)
+				return strconv.FormatFloat(value, 'f', 2, strconv.IntSize) + unit.Suffix
+			}
+		}
+	}
+
+	return "N/A"
 }

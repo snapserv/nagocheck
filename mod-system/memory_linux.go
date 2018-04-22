@@ -52,7 +52,7 @@ func getMemoryUsage() (*memoryUsage, error) {
 				matchMap["value"], err.Error())
 		}
 
-		stats[matchMap["key"]] = value
+		stats[matchMap["key"]] = value * 1024
 	}
 
 	return &memoryUsage{
