@@ -20,12 +20,14 @@ package shared
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"time"
 )
 
 // Round is a utility function which allows rounding a float64 to a given precision
 func Round(value float64, precision float64) float64 {
+	precision = 1 / math.Pow(10, precision)
 	if value > 0 {
 		return float64(int64(value/precision+0.5)) * precision
 	}

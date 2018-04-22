@@ -93,7 +93,7 @@ func (p *memoryPlugin) Probe(warnings *nagopher.WarningCollection) (metrics []na
 	if !p.CountReclaimable {
 		freeMemory += memoryUsage.cached + memoryUsage.buffers
 	}
-	usagePercent := shared.Round(100-(freeMemory/memoryUsage.total*100), 0.01)
+	usagePercent := shared.Round(100-(freeMemory/memoryUsage.total*100), 2)
 
 	metrics = append(metrics,
 		nagopher.NewNumericMetric("usage", usagePercent, "%", nil, ""),
@@ -140,8 +140,8 @@ func (s *memorySummary) formatSize(size float64) string {
 	if !math.IsNaN(size) {
 		for _, unit := range units {
 			if size > unit.Divisor*100 {
-				value := shared.Round(size/unit.Divisor, 0.01)
-				return strconv.FormatFloat(value, 'f', -1, strconv.IntSize) + unit.Suffix
+				value := shared.Round(size/unit.Divisor, 2)
+				return strconv.FormatFloat(value, 'f', 2, strconv.IntSize) + unit.Suffix
 			}
 		}
 	}
