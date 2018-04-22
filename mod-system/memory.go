@@ -134,7 +134,7 @@ func (s *memorySummary) formatSize(size float64) string {
 		{math.Pow(1024, 3), "T"},
 		{math.Pow(1024, 2), "G"},
 		{math.Pow(1024, 1), "M"},
-		{0, "K"},
+		{math.Pow(1024, 0), "K"},
 	}
 
 	if !math.IsNaN(size) {
