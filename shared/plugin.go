@@ -28,6 +28,9 @@ import (
 	"time"
 )
 
+// MetaNcPlugin contains the metadata key for storing the plugin instance.
+const MetaNcPlugin = "nc#plugin"
+
 // KingpinInterface is a generic interface for kingpin, which is implemented by both "kingpin.Application" and
 // "kingpin.CmdClause". This allows us to define a single "DefineFlags" method in the "Plugin" interface, which can
 // handle both top-level and command-level flags.
@@ -51,10 +54,16 @@ type BasePlugin struct {
 	CriticalRange *nagopher.Range
 }
 
-// BasePluginResource presents a generic nagopher 'BaseResource' linked to a plugin.
+// BasePluginResource represents a generic nagopher 'BaseResource' linked to a plugin.
 type BasePluginResource struct {
 	*nagopher.BaseResource
 	basePlugin Plugin
+}
+
+// BasePluginSummary represents a generic nagopher 'BaseSummary'. While it does not currently offer any additional
+// methods or attributes, it can be easily extended within the future. All plugins are supposed to use this type.
+type BasePluginSummary struct {
+	*nagopher.BaseSummary
 }
 
 // NewPlugin instantiates 'BasePlugin'.
@@ -160,4 +169,9 @@ func NewPluginResource(plugin Plugin) *BasePluginResource {
 // where the plugins should define their actual check/metrics logic.
 func (pr *BasePluginResource) Probe(warnings *nagopher.WarningCollection) ([]nagopher.Metric, error) {
 	return pr.basePlugin.Probe(warnings)
+}
+
+// NewPluginSummary instantiates 'BasePluginSummary'.
+func NewPluginSummary() *BasePluginSummary {
+	return &BasePluginSummary{nagopher.NewBaseSummary()}
 }
