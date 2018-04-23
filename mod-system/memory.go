@@ -114,31 +114,16 @@ func newMemorySummary() *memorySummary {
 	}
 }
 
-func (s *memorySummary) getResultMetricValue(resultCollection *nagopher.ResultCollection, name string) float64 {
-	result := resultCollection.GetByMetricName(name)
-	if result != nil {
-		if metric := result.Metric(); metric != nil {
-			numberMetric := metric.(*nagopher.NumericMetric)
-			return numberMetric.Value()
-		}
-	}
-
-	return math.NaN()
-}
-
 func (s *memorySummary) Ok(resultCollection *nagopher.ResultCollection) string {
 	return fmt.Sprintf(
 		"%s%% used - Total:%s Active:%s Inactive:%s Buffers:%s Cached:%s",
 
-		strconv.FormatFloat(
-			s.getResultMetricValue(resultCollection, "usage"),
-			'f', 2, strconv.IntSize,
-		),
+		strconv.FormatFloat(s.GetNumericMetricValue(resultCollection, "usage", math.NaN()), 'f', 2, strconv.IntSize),
 
-		shared.FormatBinarySize(s.getResultMetricValue(resultCollection, "total")),
-		shared.FormatBinarySize(s.getResultMetricValue(resultCollection, "active")),
-		shared.FormatBinarySize(s.getResultMetricValue(resultCollection, "inactive")),
-		shared.FormatBinarySize(s.getResultMetricValue(resultCollection, "buffers")),
-		shared.FormatBinarySize(s.getResultMetricValue(resultCollection, "cached")),
+		shared.FormatBinarySize(s.GetNumericMetricValue(resultCollection, "total", math.NaN())),
+		shared.FormatBinarySize(s.GetNumericMetricValue(resultCollection, "active", math.NaN())),
+		shared.FormatBinarySize(s.GetNumericMetricValue(resultCollection, "inactive", math.NaN())),
+		shared.FormatBinarySize(s.GetNumericMetricValue(resultCollection, "buffers", math.NaN())),
+		shared.FormatBinarySize(s.GetNumericMetricValue(resultCollection, "cached", math.NaN())),
 	)
 }
