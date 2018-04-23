@@ -33,7 +33,7 @@ type loadPlugin struct {
 }
 
 type loadSummary struct {
-	*nagopher.BaseSummary
+	*shared.BasePluginSummary
 }
 
 func newLoadPlugin() *loadPlugin {
@@ -50,6 +50,7 @@ func (p *loadPlugin) DefineFlags(kp shared.KingpinInterface) {
 
 func (p *loadPlugin) Execute() {
 	check := nagopher.NewCheck("load", newLoadSummary())
+	check.SetMeta(shared.MetaNcPlugin, p)
 	check.AttachResources(shared.NewPluginResource(p))
 	check.AttachContexts(
 		nagopher.NewScalarContext(
@@ -91,32 +92,58 @@ func (p *loadPlugin) Probe(warnings *nagopher.WarningCollection) (metrics []nago
 
 func newLoadSummary() *loadSummary {
 	return &loadSummary{
-		BaseSummary: nagopher.NewBaseSummary(),
+		BasePluginSummary: shared.NewPluginSummary(),
 	}
 }
 
-func (s *loadSummary) Ok(resultCollection *nagopher.ResultCollection) string {
-	return fmt.Sprintf(
-		"Load averages: %.2f, %.2f, %.2f",
+func (s *loadSummary) Ok(check *nagopher.Check) string {
+	resultCollection := check.Results()
 
+	return fmt.Sprintf(
+		"Load averages%s: %.2f, %.2f, %.2f",
+
+		s.getDescriptionSuffix(check),
 		shared.Round(s.GetNumericMetricValue(resultCollection, "load1", math.NaN()), 2),
 		shared.Round(s.GetNumericMetricValue(resultCollection, "load5", math.NaN()), 2),
 		shared.Round(s.GetNumericMetricValue(resultCollection, "load15", math.NaN()), 2),
 	)
 }
 
-func (s *loadSummary) Problem(resultCollection *nagopher.ResultCollection) string {
-	result := resultCollection.MostSignificantResult()
-	if result == nil {
-		return s.BaseSummary.Problem(resultCollection)
+func (s *loadSummary) Problem(check *nagopher.Check) string {
+	resultCollection := check.Results()
+	mostSignificantResult := resultCollection.MostSignificantResult()
+	if mostSignificantResult == nil {
+		return s.BaseSummary.Problem(check)
 	}
 
-	metric := result.Metric()
+	metric := mostSignificantResult.Metric()
 	metricDescription := map[string]string{
 		"load1":  "Load average of last minute",
 		"load5":  "Load average of last 5 minutes",
 		"load15": "Load average of last 15 minutes",
 	}[metric.Name()]
 
-	return fmt.Sprintf("%s is %s (%s)", metricDescription, metric.ValueString(), result.Hint())
+	return fmt.Sprintf("%s%s is %s (%s)",
+		metricDescription, s.getDescriptionSuffix(check), metric.ValueString(), mostSignificantResult.Hint())
+}
+
+func (s *loadSummary) getDescriptionSuffix(check *nagopher.Check) string {
+	if plugin := s.getPlugin(check); plugin != nil {
+		if plugin.PerCPU {
+			return " per CPU"
+		}
+	}
+
+	return ""
+}
+
+func (s *loadSummary) getPlugin(check *nagopher.Check) *loadPlugin {
+	rawPlugin := check.GetMeta(shared.MetaNcPlugin, nil)
+	if rawPlugin != nil {
+		if plugin, ok := rawPlugin.(*loadPlugin); ok {
+			return plugin
+		}
+	}
+
+	return nil
 }
