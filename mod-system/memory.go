@@ -23,7 +23,6 @@ import (
 	"github.com/snapserv/nagopher"
 	"github.com/snapserv/nagopher-checks/shared"
 	"math"
-	"strconv"
 )
 
 type memoryPlugin struct {
@@ -116,10 +115,9 @@ func newMemorySummary() *memorySummary {
 
 func (s *memorySummary) Ok(resultCollection *nagopher.ResultCollection) string {
 	return fmt.Sprintf(
-		"%s%% used - Total:%s Active:%s Inactive:%s Buffers:%s Cached:%s",
+		"%.2f%% used - Total:%s Active:%s Inactive:%s Buffers:%s Cached:%s",
 
-		strconv.FormatFloat(s.GetNumericMetricValue(resultCollection, "usage", math.NaN()), 'f', 2, strconv.IntSize),
-
+		s.GetNumericMetricValue(resultCollection, "usage", math.NaN()),
 		shared.FormatBinarySize(s.GetNumericMetricValue(resultCollection, "total", math.NaN())),
 		shared.FormatBinarySize(s.GetNumericMetricValue(resultCollection, "active", math.NaN())),
 		shared.FormatBinarySize(s.GetNumericMetricValue(resultCollection, "inactive", math.NaN())),
