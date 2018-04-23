@@ -19,8 +19,10 @@
 package modsystem
 
 import (
+	"fmt"
 	"github.com/snapserv/nagopher"
 	"github.com/snapserv/nagopher-checks/shared"
+	"math"
 	"runtime"
 )
 
@@ -28,6 +30,10 @@ type loadPlugin struct {
 	*shared.BasePlugin
 
 	PerCPU bool
+}
+
+type loadSummary struct {
+	*nagopher.BaseSummary
 }
 
 func newLoadPlugin() *loadPlugin {
@@ -43,7 +49,7 @@ func (p *loadPlugin) DefineFlags(kp shared.KingpinInterface) {
 }
 
 func (p *loadPlugin) Execute() {
-	check := nagopher.NewCheck("load", nagopher.NewBaseSummary())
+	check := nagopher.NewCheck("load", newLoadSummary())
 	check.AttachResources(shared.NewPluginResource(p))
 	check.AttachContexts(
 		nagopher.NewScalarContext(
@@ -81,4 +87,36 @@ func (p *loadPlugin) Probe(warnings *nagopher.WarningCollection) (metrics []nago
 	}
 
 	return metrics, nil
+}
+
+func newLoadSummary() *loadSummary {
+	return &loadSummary{
+		BaseSummary: nagopher.NewBaseSummary(),
+	}
+}
+
+func (s *loadSummary) Ok(resultCollection *nagopher.ResultCollection) string {
+	return fmt.Sprintf(
+		"Load averages: %.2f, %.2f, %.2f",
+
+		shared.Round(s.GetNumericMetricValue(resultCollection, "load1", math.NaN()), 2),
+		shared.Round(s.GetNumericMetricValue(resultCollection, "load5", math.NaN()), 2),
+		shared.Round(s.GetNumericMetricValue(resultCollection, "load15", math.NaN()), 2),
+	)
+}
+
+func (s *loadSummary) Problem(resultCollection *nagopher.ResultCollection) string {
+	result := resultCollection.MostSignificantResult()
+	if result == nil {
+		return s.BaseSummary.Problem(resultCollection)
+	}
+
+	metric := result.Metric()
+	metricDescription := map[string]string{
+		"load1":  "Load average of last minute",
+		"load5":  "Load average of last 5 minutes",
+		"load15": "Load average of last 15 minutes",
+	}[metric.Name()]
+
+	return fmt.Sprintf("%s is %s (%s)", metricDescription, metric.ValueString(), result.Hint())
 }
