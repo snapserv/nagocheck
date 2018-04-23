@@ -113,7 +113,9 @@ func newMemorySummary() *memorySummary {
 	}
 }
 
-func (s *memorySummary) Ok(resultCollection *nagopher.ResultCollection) string {
+func (s *memorySummary) Ok(check *nagopher.Check) string {
+	resultCollection := check.Results()
+
 	return fmt.Sprintf(
 		"%.2f%% used - Total:%s Active:%s Inactive:%s Buffers:%s Cached:%s",
 

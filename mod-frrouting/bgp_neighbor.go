@@ -259,7 +259,9 @@ func newBgpNeighborSummary() *bgpNeighborSummary {
 	}
 }
 
-func (s *bgpNeighborSummary) Ok(resultCollection *nagopher.ResultCollection) string {
+func (s *bgpNeighborSummary) Ok(check *nagopher.Check) string {
+	resultCollection := check.Results()
+
 	lastStateChange := s.GetNumericMetricValue(resultCollection, "last_state_change", math.NaN())
 	lastStateChangeString := "N/A"
 	if !math.IsNaN(lastStateChange) {
@@ -280,6 +282,6 @@ func (s *bgpNeighborSummary) Ok(resultCollection *nagopher.ResultCollection) str
 	)
 }
 
-func (s *bgpNeighborSummary) Problem(resultCollection *nagopher.ResultCollection) string {
-	return s.Ok(resultCollection)
+func (s *bgpNeighborSummary) Problem(check *nagopher.Check) string {
+	return s.Ok(check)
 }

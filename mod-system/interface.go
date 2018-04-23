@@ -123,8 +123,9 @@ func newInterfaceSummary() *interfaceSummary {
 	}
 }
 
-func (s *interfaceSummary) Ok(resultCollection *nagopher.ResultCollection) string {
+func (s *interfaceSummary) Ok(check *nagopher.Check) string {
 	var interfaceSpeed string
+	resultCollection := check.Results()
 
 	speedResult := resultCollection.GetByMetricName("speed")
 	if speedResult != nil {
