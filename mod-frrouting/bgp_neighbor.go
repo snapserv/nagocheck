@@ -40,7 +40,7 @@ type bgpNeighborPlugin struct {
 }
 
 type bgpNeighborSummary struct {
-	*nagopher.BaseSummary
+	*shared.BasePluginSummary
 }
 
 type bgpNeighborStatsCollection map[string]bgpNeighborStats
@@ -255,7 +255,7 @@ func (p *bgpNeighborPlugin) fetchStatistics() (*bgpNeighborStats, error) {
 
 func newBgpNeighborSummary() *bgpNeighborSummary {
 	return &bgpNeighborSummary{
-		BaseSummary: nagopher.NewBaseSummary(),
+		BasePluginSummary: shared.NewPluginSummary(),
 	}
 }
 

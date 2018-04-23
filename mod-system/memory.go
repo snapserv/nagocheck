@@ -41,7 +41,7 @@ type memoryUsage struct {
 }
 
 type memorySummary struct {
-	*nagopher.BaseSummary
+	*shared.BasePluginSummary
 }
 
 func newMemoryPlugin() *memoryPlugin {
@@ -109,7 +109,7 @@ func (p *memoryPlugin) Probe(warnings *nagopher.WarningCollection) (metrics []na
 
 func newMemorySummary() *memorySummary {
 	return &memorySummary{
-		BaseSummary: nagopher.NewBaseSummary(),
+		BasePluginSummary: shared.NewPluginSummary(),
 	}
 }
 

@@ -34,7 +34,7 @@ type interfacePlugin struct {
 }
 
 type interfaceSummary struct {
-	*nagopher.BaseSummary
+	*shared.BasePluginSummary
 }
 
 type interfaceStats struct {
@@ -119,7 +119,7 @@ func (p *interfacePlugin) Probe(warnings *nagopher.WarningCollection) (metrics [
 
 func newInterfaceSummary() *interfaceSummary {
 	return &interfaceSummary{
-		BaseSummary: nagopher.NewBaseSummary(),
+		BasePluginSummary: shared.NewPluginSummary(),
 	}
 }
 
