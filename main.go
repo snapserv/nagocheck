@@ -37,13 +37,15 @@ var (
 
 func main() {
 	moduleCommands := shared.ModuleCommands{
-		modsystem.GetModuleCommand(),
 		modfrrouting.GetModuleCommand(),
+		modsystem.GetModuleCommand(),
 	}
 
 	for _, moduleCommand := range moduleCommands {
 		moduleDescription := "Check Module: " + moduleCommand.Description
 		moduleClause := kingpin.Command(moduleCommand.Name, moduleDescription)
+		moduleCommand.Module.DefineFlags(moduleClause)
+
 		for _, pluginCommand := range moduleCommand.PluginCommands {
 			pluginDescription := fmt.Sprintf("%s: %s", moduleCommand.Description, pluginCommand.Description)
 			pluginClause := moduleClause.Command(pluginCommand.Name, pluginDescription)
@@ -53,8 +55,10 @@ func main() {
 
 	kingpin.Version(fmt.Sprintf("nagopher-checks, version %s (commit: %s)\nbuild date: %s, runtime: %s",
 		BuildVersion, BuildCommit, BuildDate, runtime.Version()))
-	commandParts := strings.Split(kingpin.Parse(), " ")
+	kingpin.CommandLine.HelpFlag.Short('h')
+	kingpin.CommandLine.VersionFlag.Short('V')
 
+	commandParts := strings.Split(kingpin.Parse(), " ")
 	moduleCommand, err := moduleCommands.GetByName(commandParts[0])
 	if err != nil {
 		panic(err)
@@ -64,5 +68,5 @@ func main() {
 		panic(err)
 	}
 
-	pluginCommand.Plugin.Execute()
+	moduleCommand.Module.Execute(pluginCommand.Plugin)
 }

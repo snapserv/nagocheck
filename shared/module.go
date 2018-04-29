@@ -30,6 +30,7 @@ type PluginCommands []PluginCommand
 type ModuleCommand struct {
 	Name           string
 	Description    string
+	Module         Module
 	PluginCommands PluginCommands
 }
 
@@ -39,6 +40,16 @@ type PluginCommand struct {
 	Description string
 	Plugin      Plugin
 }
+
+// Module represents a interface for all module types.
+type Module interface {
+	DefineFlags(KingpinInterface)
+	Execute(Plugin)
+	GetModuleCommand() ModuleCommand
+}
+
+// BaseModule represents a generic module from which all other module types should originate.
+type BaseModule struct{}
 
 // GetByName tries to find a 'ModuleCommand' with the given name and returns if found. An error will be returned in
 // case no module with such a name exists.
@@ -62,4 +73,14 @@ func (pc PluginCommands) GetByName(name string) (command PluginCommand, _ error)
 	}
 
 	return command, fmt.Errorf("could not find plugin command: %s", name)
+}
+
+// DefineFlags defines an empty method which can be overridden by modules to specify a common subset of flags for all
+// the module plugins.
+func (m *BaseModule) DefineFlags(kp KingpinInterface) {}
+
+// Execute calls the 'Execute' method of the given plugin. This method can be overridden by modules to initialize
+// module-specific code/variables before executing the plugin OR to suppress execution of a plugin in specific cases.
+func (m *BaseModule) Execute(plugin Plugin) {
+	plugin.Execute()
 }

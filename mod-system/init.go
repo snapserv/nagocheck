@@ -20,11 +20,25 @@ package modsystem
 
 import "github.com/snapserv/nagopher-checks/shared"
 
-// GetModuleCommand returns a module command declaration for this check module
+type systemModule struct {
+	*shared.BaseModule
+}
+
+// GetModuleCommand is a helper method for instantiating 'systemModule' and calling the 'GetModuleCommand' method to
+// return a module command declaration.
 func GetModuleCommand() shared.ModuleCommand {
+	return newSystemModule().GetModuleCommand()
+}
+
+func newSystemModule() *systemModule {
+	return &systemModule{}
+}
+
+func (m *systemModule) GetModuleCommand() shared.ModuleCommand {
 	return shared.ModuleCommand{
 		Name:        "system",
 		Description: "Operating System",
+		Module:      m,
 		PluginCommands: shared.PluginCommands{
 			{
 				Name:        "interface",

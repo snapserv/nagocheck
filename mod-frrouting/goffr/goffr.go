@@ -31,7 +31,7 @@ import (
 
 // Session represents a generic interface for controlling API sessions to the FRRouting daemon.
 type Session interface {
-	GetInstance(name string) (*TelnetInstance, error)
+	GetInstance(name string) (Instance, error)
 }
 
 // Instance represents an instance of an API session, where typically one instance is assigned to each active daemon.
@@ -98,7 +98,7 @@ func NewVtyshSession(binaryPath string) *VtyshSession {
 // GetInstance returns always the same dummy instance for 'VtyshSession', no matter which daemon was requested. This
 // method was implemented to achieve compatibility with the telnet API, however vtysh handles selecting the correct
 // daemon by itself.
-func (s *VtyshSession) GetInstance(name string) (*VtyshInstance, error) {
+func (s *VtyshSession) GetInstance(name string) (Instance, error) {
 	return s.instance, nil
 }
 
@@ -160,7 +160,7 @@ func NewTelnetSession(hostname string, password string) *TelnetSession {
 // GetInstance returns the instance with the given (daemon) name if already requested in a previous call. If no such
 // instance was instantiated so far, a new instance gets automatically created, which tries connecting to the target
 // daemon.
-func (s *TelnetSession) GetInstance(name string) (*TelnetInstance, error) {
+func (s *TelnetSession) GetInstance(name string) (Instance, error) {
 	instancePorts := map[string]int{
 		"zebra":  2601,
 		"ripd":   2602,

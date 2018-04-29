@@ -32,11 +32,11 @@ import (
 type bgpNeighborPlugin struct {
 	*shared.BasePlugin
 
-	RouterAddress    string
-	RouterPassword   string
 	NeighborAddress  string
 	IsCritical       bool
 	PrefixLimitRange *nagopher.Range
+
+	module *frroutingModule
 }
 
 type bgpNeighborSummary struct {
@@ -75,26 +75,15 @@ type bgpNeighborAFStats struct {
 	PrefixLimit int    `json:"prefixAllowedMax"`
 }
 
-func newBgpNeighborPlugin() *bgpNeighborPlugin {
+func newBgpNeighborPlugin(module *frroutingModule) *bgpNeighborPlugin {
 	return &bgpNeighborPlugin{
 		BasePlugin: shared.NewPlugin(),
+		module:     module,
 	}
 }
 
 func (p *bgpNeighborPlugin) DefineFlags(kp shared.KingpinInterface) {
 	p.BasePlugin.DefineFlags(kp, false)
-
-	kp.Flag("router-address", "Specifies the address of the given router, which should offer a telnet "+
-		"connection to the standard port used by FRRouting for the bgp daemon.").
-		Short('r').
-		Default("localhost").
-		StringVar(&p.RouterAddress)
-
-	kp.Flag("router-password", "Specifies the password which should be used for connecting against the "+
-		"FRRouting bgpd daemon. Please note that this is the connection and -not- the enable password.").
-		Short('p').
-		Required().
-		StringVar(&p.RouterPassword)
 
 	kp.Flag("neighbor-address", "Specifies the address of neighbor for which the statistics should be "+
 		"fetched. Both IPv4 and IPv6 are supported without specifying the address family explicitly.").
@@ -195,9 +184,8 @@ func (p *bgpNeighborPlugin) Probe(warnings *nagopher.WarningCollection) (metrics
 func (p *bgpNeighborPlugin) fetchStatistics() (*bgpNeighborStats, error) {
 	var neighbors bgpNeighborStatsCollection
 
-	// Establish new goffr session to our router
-	session := goffr.NewSession(p.RouterAddress, p.RouterPassword)
-	bgpd, err := session.GetInstance(goffr.InstanceBGP)
+	// Establish new goffr instance to the FRRouting daemon
+	bgpd, err := p.module.GoffrSession.GetInstance(goffr.InstanceBGP)
 	if err != nil {
 		return nil, fmt.Errorf("bgp_neighbor: could not connect to bgpd instance (%s)", err.Error())
 	}
