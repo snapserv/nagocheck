@@ -271,5 +271,9 @@ func (s *bgpNeighborSummary) Ok(check *nagopher.Check) string {
 }
 
 func (s *bgpNeighborSummary) Problem(check *nagopher.Check) string {
+	if check.Results().MostSignificantState() == nagopher.StateUnknown {
+		return s.BasePluginSummary.Problem(check)
+	}
+
 	return s.Ok(check)
 }
