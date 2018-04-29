@@ -117,14 +117,13 @@ func (p *bgpNeighborPlugin) Execute() {
 		nagopher.NewStringInfoContext("info_session_1"),
 		nagopher.NewStringInfoContext("info_session_2"),
 		nagopher.NewStringInfoContext("info_prefix_usage"),
+		nagopher.NewStringInfoContext("info_reset_reason"),
+		nagopher.NewStringInfoContext("info_notification_reason"),
 
 		nagopher.NewStringMatchContext("state", []string{"ESTABLISHED"}, problemState),
 		nagopher.NewScalarContext("last_state_change", nil, nil),
 		nagopher.NewScalarContext("prefix_limit_usage", p.PrefixLimitRange, nil),
 		nagopher.NewScalarContext("prefix_count", nil, nil),
-
-		nagopher.NewContext("notification_reason", ""),
-		nagopher.NewContext("reset_reason", ""),
 	)
 
 	p.ExecuteCheck(check)
@@ -143,9 +142,6 @@ func (p *bgpNeighborPlugin) Probe(warnings *nagopher.WarningCollection) (metrics
 			"s", nil, ""),
 		nagopher.NewNumericMetric("prefix_count", float64(neighbor.prefixUsageTotal),
 			"", nil, ""),
-
-		nagopher.NewStringMetric("reset_reason", neighbor.ResetReason, ""),
-		nagopher.NewStringMetric("notification_reason", neighbor.NotificationReason, ""),
 
 		nagopher.NewStringMetric("info_description",
 			fmt.Sprintf("description: %s", neighbor.Description),
@@ -177,6 +173,18 @@ func (p *bgpNeighborPlugin) Probe(warnings *nagopher.WarningCollection) (metrics
 		usageString += ", no maximum set"
 	}
 	metrics = append(metrics, nagopher.NewStringMetric("info_prefix_usage", usageString, ""))
+
+	// Display last reset/notification reason if neighbor has state!='ESTABLISHED' and not reason is not empty
+	if neighbor.OperationalState != "ESTABLISHED" {
+		if neighbor.ResetReason != "" {
+			metrics = append(metrics, nagopher.NewStringMetric("info_reset_reason",
+				fmt.Sprintf("last reset reason: %s", neighbor.ResetReason), ""))
+		}
+		if neighbor.NotificationReason != "" {
+			metrics = append(metrics, nagopher.NewStringMetric("info_notification_reason",
+				fmt.Sprintf("last notification reason: %s", neighbor.NotificationReason), ""))
+		}
+	}
 
 	return metrics, nil
 }
