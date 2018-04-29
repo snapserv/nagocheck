@@ -24,21 +24,46 @@ import (
 	"fmt"
 	"github.com/google/goexpect"
 	"github.com/ziutek/telnet"
+	"os/exec"
 	"strings"
 	"time"
 )
 
-// Session represents a goffr session to one or more instances of the FRRouting daemon
-type Session struct {
-	hostname  string
-	password  string
-	instances map[string]*Instance
+// Session represents a generic interface for controlling API sessions to the FRRouting daemon.
+type Session interface {
+	GetInstance(name string) (*TelnetInstance, error)
 }
 
-// Instance represents a goffr instance, which is a lightweight wrapper around goexpect and a telnet session to the
-// according daemon of FRRouting. This structure should never be instantiated directly and gets created by the
-// Session.GetInstance() method.
-type Instance struct {
+// Instance represents an instance of an API session, where typically one instance is assigned to each active daemon.
+type Instance interface {
+	Execute(command string) (string, error)
+	ExecuteJSON(command string) (string, error)
+}
+
+// VtyshSession represents a goffr vtysh session containing exactly one fake instance. As vtysh is stateless by design,
+// no actual session to the FRR daemon gets established and always the same dummy instance is being returned.
+type VtyshSession struct {
+	binaryPath string
+	instance   *VtyshInstance
+}
+
+// VtyshInstance represents a goffr dummy instance for a vtysh session. As the concept of instances does not exist for
+// the vtysh implementation, this structure should only contain a reference to the session.
+type VtyshInstance struct {
+	session *VtyshSession
+}
+
+// TelnetSession represents a goffr telnet session to one or more instances of the FRRouting daemon
+type TelnetSession struct {
+	hostname  string
+	password  string
+	instances map[string]*TelnetInstance
+}
+
+// TelnetInstance represents a goffr telnet instance, which is a lightweight wrapper around goexpect and a telnet
+// session to the according daemon of FRRouting. This structure should never be instantiated directly and gets created
+// by the TelnetSession.GetInstance() method.
+type TelnetInstance struct {
 	name           string
 	systemName     string
 	systemAddress  string
@@ -58,21 +83,84 @@ const (
 	InstancePIM   = "pimd"
 )
 
-const timeout = 5 * time.Second
+const timeout = 10 * time.Second
 
-// NewSession instantiates a new 'Session' without any instances.
-func NewSession(hostname string, password string) *Session {
-	return &Session{
+// NewVtyshSession instantiates a new 'VtyshSession'.
+func NewVtyshSession(binaryPath string) *VtyshSession {
+	session := &VtyshSession{
+		binaryPath: binaryPath,
+	}
+	session.instance = newVtyshInstance(session)
+
+	return session
+}
+
+// GetInstance returns always the same dummy instance for 'VtyshSession', no matter which daemon was requested. This
+// method was implemented to achieve compatibility with the telnet API, however vtysh handles selecting the correct
+// daemon by itself.
+func (s *VtyshSession) GetInstance(name string) (*VtyshInstance, error) {
+	return s.instance, nil
+}
+
+func newVtyshInstance(session *VtyshSession) *VtyshInstance {
+	return &VtyshInstance{
+		session: session,
+	}
+}
+
+// Execute tries to execute a command against the FRRouting daemon by spawning a new vtysh process. Please note that
+// errors spewed out by the FRRouting daemon are not being handled, only vtysh execution errors. It is the callers duty
+// to manually parse the output according to the FRRouting specifications. Any captured output, both stdout and stderr,
+// still gets returned to the caller even when an error has occurred.
+func (i *VtyshInstance) Execute(frrCommand string) (string, error) {
+	var timeoutError error
+
+	command := exec.Command(i.session.binaryPath, "-c", frrCommand)
+	timer := time.AfterFunc(timeout, func() {
+		timeoutError = fmt.Errorf("goffr: command execution timed out after %f seconds", timeout.Seconds())
+		command.Process.Kill()
+	})
+
+	output, err := command.CombinedOutput()
+	timer.Stop()
+	if timeoutError != nil {
+		return string(output), timeoutError
+	}
+
+	return string(output), err
+}
+
+// ExecuteJSON is a lightweight wrapper against 'Execute()', which will try to parse and compact the output of the given
+// command as JSON. In case the output does not represent valid JSON (e.g. an error occurred during the execution of the
+// command), an error will be returned instead.
+func (i *VtyshInstance) ExecuteJSON(frrCommand string) (string, error) {
+	rawOutput, err := i.Execute(frrCommand)
+	if err != nil {
+		return "", err
+	}
+
+	compactOutput := new(bytes.Buffer)
+	err = json.Compact(compactOutput, []byte(rawOutput))
+	if err != nil {
+		return "", fmt.Errorf("gofrr: could not parse output [%s] as JSON (%s)", rawOutput, err.Error())
+	}
+
+	return compactOutput.String(), nil
+}
+
+// NewTelnetSession instantiates a new 'TelnetSession' without any instances.
+func NewTelnetSession(hostname string, password string) *TelnetSession {
+	return &TelnetSession{
 		hostname:  hostname,
 		password:  password,
-		instances: make(map[string]*Instance),
+		instances: make(map[string]*TelnetInstance),
 	}
 }
 
 // GetInstance returns the instance with the given (daemon) name if already requested in a previous call. If no such
 // instance was instantiated so far, a new instance gets automatically created, which tries connecting to the target
 // daemon.
-func (s *Session) GetInstance(name string) (*Instance, error) {
+func (s *TelnetSession) GetInstance(name string) (*TelnetInstance, error) {
 	instancePorts := map[string]int{
 		"zebra":  2601,
 		"ripd":   2602,
@@ -90,7 +178,7 @@ func (s *Session) GetInstance(name string) (*Instance, error) {
 
 	name = strings.TrimSpace(strings.ToLower(name))
 	if instancePort, ok := instancePorts[name]; ok {
-		instance := newInstance(name, fmt.Sprintf("%s:%d", s.hostname, instancePort), s.password)
+		instance := newTelnetInstance(name, fmt.Sprintf("%s:%d", s.hostname, instancePort), s.password)
 		if err := instance.initialize(); err != nil {
 			return nil, fmt.Errorf("goffr: could not initialize instance (%s)", err.Error())
 		}
@@ -102,8 +190,8 @@ func (s *Session) GetInstance(name string) (*Instance, error) {
 	return nil, fmt.Errorf("goffr: unknown instance name [%s]", name)
 }
 
-func newInstance(name string, systemAddress string, systemPassword string) *Instance {
-	return &Instance{
+func newTelnetInstance(name string, systemAddress string, systemPassword string) *TelnetInstance {
+	return &TelnetInstance{
 		name:           name,
 		systemAddress:  systemAddress,
 		systemPassword: systemPassword,
@@ -114,7 +202,7 @@ func newInstance(name string, systemAddress string, systemPassword string) *Inst
 // Execute tries to execute a command against the FRRouting daemon for which this instance was created. Please note that
 // errors spewed out by the FRRouting daemon are not being handled, only connection/transmission errors. It is the
 // callers duty to manually parse the output according to the FRRouting specifications.
-func (i *Instance) Execute(command string) (string, error) {
+func (i *TelnetInstance) Execute(command string) (string, error) {
 	if err := i.prepare(); err != nil {
 		return "", fmt.Errorf("gofrr-%s: could not prepare execution of command (%s)", i.name, err.Error())
 	}
@@ -134,7 +222,7 @@ func (i *Instance) Execute(command string) (string, error) {
 // ExecuteJSON is a lightweight wrapper against 'Execute()', which will try to parse and compact the output of the given
 // command as JSON. In case the output does not represent valid JSON (e.g. an error occurred during the execution of the
 // command), an error will be returned instead.
-func (i *Instance) ExecuteJSON(command string) (string, error) {
+func (i *TelnetInstance) ExecuteJSON(command string) (string, error) {
 	rawOutput, err := i.Execute(command)
 	if err != nil {
 		return "", err
@@ -150,14 +238,14 @@ func (i *Instance) ExecuteJSON(command string) (string, error) {
 	return compactOutput.String(), nil
 }
 
-func (i *Instance) initialize() error {
+func (i *TelnetInstance) initialize() error {
 	var err error
 
 	if i.expecter != nil {
 		return fmt.Errorf("goffr-%s: already connected to system [%s]", i.name, i.systemAddress)
 	}
 
-	i.expecter, _, err = spawnTelnetExpecter(i.systemAddress, timeout)
+	i.expecter, _, err = spawnTelnetExpecter(i.systemAddress, timeout, expect.Option(expect.Verbose(true)))
 	if err != nil {
 		return fmt.Errorf("goffr-%s: could not connect to system [%s] (%s)", i.name, i.systemAddress, err.Error())
 	}
@@ -183,7 +271,7 @@ func (i *Instance) initialize() error {
 	return nil
 }
 
-func (i *Instance) prepare() error {
+func (i *TelnetInstance) prepare() error {
 	_, err := i.expecter.ExpectBatch([]expect.Batcher{
 		&expect.BSnd{S: "\n"},
 		&expect.BExp{R: i.promptLine()},
@@ -192,7 +280,7 @@ func (i *Instance) prepare() error {
 	return err
 }
 
-func (i *Instance) promptLine() string {
+func (i *TelnetInstance) promptLine() string {
 	return `\r\n` + i.systemName + `> $`
 }
 
@@ -201,6 +289,8 @@ func spawnTelnetExpecter(address string, timeout time.Duration, opts ...expect.O
 	if err != nil {
 		return nil, nil, err
 	}
+
+	fmt.Printf("Local Address: %s", connection.LocalAddr().String())
 
 	resultChannel := make(chan error)
 	return expect.SpawnGeneric(&expect.GenOptions{
