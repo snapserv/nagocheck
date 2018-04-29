@@ -25,6 +25,7 @@ import (
 	"github.com/snapserv/nagopher-checks/mod-frrouting/goffr"
 	"github.com/snapserv/nagopher-checks/shared"
 	"math"
+	"net"
 	"strings"
 	"time"
 )
@@ -32,7 +33,7 @@ import (
 type bgpNeighborPlugin struct {
 	*shared.BasePlugin
 
-	NeighborAddress  string
+	NeighborIP       net.IP
 	IsCritical       bool
 	PrefixLimitRange *nagopher.Range
 
@@ -85,11 +86,10 @@ func newBgpNeighborPlugin(module *frroutingModule) *bgpNeighborPlugin {
 func (p *bgpNeighborPlugin) DefineFlags(kp shared.KingpinInterface) {
 	p.BasePlugin.DefineFlags(kp, false)
 
-	kp.Flag("neighbor-address", "Specifies the address of neighbor for which the statistics should be "+
-		"fetched. Both IPv4 and IPv6 are supported without specifying the address family explicitly.").
-		Short('n').
+	kp.Arg("neighbor", "Specifies the IP address of neighbor for which the statistics should be fetched. Both IPv4 "+
+		"IPv6 are supported without specifying the address family explicitly.").
 		Required().
-		StringVar(&p.NeighborAddress)
+		IPVar(&p.NeighborIP)
 
 	kp.Flag("critical", "Toggles if the given neighbor is critical or not. This will influence the "+
 		"resulting check state if the session of the given neighbor is not established by either returning WARNING or "+
@@ -190,18 +190,21 @@ func (p *bgpNeighborPlugin) fetchStatistics() (*bgpNeighborStats, error) {
 		return nil, fmt.Errorf("bgp_neighbor: could not connect to bgpd instance (%s)", err.Error())
 	}
 
+	// Convert neighbor IP to lower-cased string representation
+	neighborAddress := strings.ToLower(p.NeighborIP.String())
+
 	// Fetch JSON data for the desired neighbor
-	rawData, err := bgpd.ExecuteJSON(fmt.Sprintf("show bgp neighbor %s json", p.NeighborAddress))
+	rawData, err := bgpd.ExecuteJSON(fmt.Sprintf("show bgp neighbor %s json", neighborAddress))
 	if err != nil {
 		return nil, fmt.Errorf("bgp_neighbor: could not fetch statistics for neighbor [%s] (%s)",
-			p.NeighborAddress, err.Error())
+			neighborAddress, err.Error())
 	}
 
 	// Unmarshal the JSON data into our neighbor statistics struct
 	json.Unmarshal([]byte(rawData), &neighbors)
-	neighbor, ok := neighbors[strings.ToLower(p.NeighborAddress)]
+	neighbor, ok := neighbors[neighborAddress]
 	if !ok {
-		return nil, fmt.Errorf("bgp_neighbor: neighbor [%s] not found", p.NeighborAddress)
+		return nil, fmt.Errorf("bgp_neighbor: neighbor [%s] not found", neighborAddress)
 	}
 
 	// Manually adjust some returned metrics and/or provide fallback values
@@ -210,7 +213,7 @@ func (p *bgpNeighborPlugin) fetchStatistics() (*bgpNeighborStats, error) {
 		neighbor.LocalHost = neighbor.UpdateSource
 	}
 	if neighbor.RemoteHost == "" {
-		neighbor.RemoteHost = p.NeighborAddress
+		neighbor.RemoteHost = neighborAddress
 	}
 
 	// Parse FRR state timers (up since OR reset since) to receive 'time.Duration' objects
