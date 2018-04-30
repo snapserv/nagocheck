@@ -36,6 +36,7 @@ type bgpNeighborPlugin struct {
 	NeighborIP       net.IP
 	IsCritical       bool
 	PrefixLimitRange *nagopher.Range
+	UptimeRange      *nagopher.Range
 
 	module *frroutingModule
 }
@@ -76,6 +77,10 @@ type bgpNeighborAFStats struct {
 	PrefixLimit int    `json:"prefixAllowedMax"`
 }
 
+type uptimeContext struct {
+	*nagopher.ScalarContext
+}
+
 func newBgpNeighborPlugin(module *frroutingModule) *bgpNeighborPlugin {
 	return &bgpNeighborPlugin{
 		BasePlugin: shared.NewPlugin(),
@@ -97,11 +102,13 @@ func (p *bgpNeighborPlugin) DefineFlags(kp shared.KingpinInterface) {
 		Short('c').
 		BoolVar(&p.IsCritical)
 
-	shared.NagopherRangeVar(
-		kp.Flag("prefix-limit", "Range for prefix limit usage given as Nagios range specifier. Plugin "+
-			"will return WARNING state in case the range does not match. If no prefix limit was configured, this "+
-			" check gets ignored.").
-			Short('l'), &p.PrefixLimitRange)
+	shared.NagopherRangeVar(kp.Flag("prefix-limit", "Range for prefix limit usage given as Nagios range specifier. "+
+		"Plugin will return WARNING state in case the range does not match. If no prefix limit was configured, this "+
+		"check gets ignored.").Short('l'), &p.PrefixLimitRange)
+
+	shared.NagopherRangeVar(kp.Flag("uptime", "Range for neighbor uptime (state=ESTABLISHED) given as Nagios range "+
+		"specifier. Plugin will return WARNING state in case the range does not match. This allows to alert when a "+
+		"session was recently established.").Short('u'), &p.UptimeRange)
 }
 
 func (p *bgpNeighborPlugin) Execute() {
@@ -124,6 +131,8 @@ func (p *bgpNeighborPlugin) Execute() {
 		nagopher.NewScalarContext("last_state_change", nil, nil),
 		nagopher.NewScalarContext("prefix_limit_usage", p.PrefixLimitRange, nil),
 		nagopher.NewScalarContext("prefix_count", nil, nil),
+
+		newUptimeContext("uptime", p.UptimeRange, nil),
 	)
 
 	p.ExecuteCheck(check)
@@ -163,6 +172,11 @@ func (p *bgpNeighborPlugin) Probe(warnings *nagopher.WarningCollection) (metrics
 	if neighbor.prefixLimitTotal > 0 {
 		metrics = append(metrics, nagopher.NewNumericMetric("prefix_limit_usage",
 			float64(neighbor.prefixLimitUsagePercent), "%", nil, ""))
+	}
+
+	// Only add uptime metric (redundant with last state change metric) if state=='ESTABLISHED'
+	if neighbor.OperationalState == "ESTABLISHED" {
+		metrics = append(metrics, nagopher.NewNumericMetric("uptime", lastStateChangeSeconds, "s", nil, ""))
 	}
 
 	// Display additional information about prefix usage
@@ -287,4 +301,12 @@ func (s *bgpNeighborSummary) Problem(check *nagopher.Check) string {
 	}
 
 	return s.Ok(check)
+}
+
+func newUptimeContext(name string, warningRange *nagopher.Range, criticalRange *nagopher.Range) *uptimeContext {
+	return &uptimeContext{nagopher.NewScalarContext(name, warningRange, criticalRange)}
+}
+
+func (c *uptimeContext) Performance(metric nagopher.Metric, resource nagopher.Resource) *nagopher.PerfData {
+	return nil
 }
