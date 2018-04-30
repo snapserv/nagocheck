@@ -296,11 +296,12 @@ func (s *bgpNeighborSummary) Ok(check *nagopher.Check) string {
 }
 
 func (s *bgpNeighborSummary) Problem(check *nagopher.Check) string {
-	if check.Results().MostSignificantState() == nagopher.StateUnknown {
-		return s.BasePluginSummary.Problem(check)
+	mostSignificantResult := check.Results().MostSignificantResult()
+	if mostSignificantResult != nil && mostSignificantResult.Metric().Name() == "state" {
+		return s.Ok(check)
 	}
 
-	return s.Ok(check)
+	return s.BasePluginSummary.Problem(check)
 }
 
 func newUptimeContext(name string, warningRange *nagopher.Range, criticalRange *nagopher.Range) *uptimeContext {
