@@ -25,7 +25,7 @@ archive:
 
 nfpm:
   vendor: Pascal Mathis
-  maintainer: Pascal Mathis <ppmathis@noreply.smx.li>
+  maintainer: SnapServ Packaging Team <packaging@snapserv.net>
   homepage: https://github.com/snapserv/nagocheck
   description: Reliable and lightweight Nagios plugins written in Go
   license: GPL-3.0
