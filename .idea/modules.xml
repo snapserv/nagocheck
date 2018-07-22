@@ -2,7 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/nagopher-checks.iml" filepath="$PROJECT_DIR$/.idea/nagopher-checks.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/nagocheck.iml" filepath="$PROJECT_DIR$/.idea/nagocheck.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/nagocheck.iml" filepath="$PROJECT_DIR$/.idea/nagocheck.iml" />
     </modules>
   </component>
 </project>

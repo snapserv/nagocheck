@@ -1,6 +1,6 @@
 builds:
   - main: ./
-    binary: nagopher-checks
+    binary: nagocheck
     flags: -a -tags netgo
     ldflags: -s -w -X main.BuildVersion={{.Version}} -X main.BuildCommit={{.Commit}} -X main.BuildDate={{.Date}}
 
@@ -26,7 +26,7 @@ archive:
 nfpm:
   vendor: Pascal Mathis
   maintainer: Pascal Mathis <ppmathis@noreply.smx.li>
-  homepage: https://github.com/snapserv/nagopher-checks
+  homepage: https://github.com/snapserv/nagocheck
   description: Reliable and lightweight Nagios plugins written in Go
   license: GPL-3.0
   bindir: /usr/bin

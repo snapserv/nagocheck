@@ -1,5 +1,5 @@
 /*
- * nagopher-checks - Reliable and lightweight Nagios plugins written in Go
+ * nagocheck - Reliable and lightweight Nagios plugins written in Go
  * Copyright (C) 2018  Pascal Mathis
  *
  * This program is free software: you can redistribute it and/or modify
@@ -22,8 +22,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/snapserv/nagopher"
-	"github.com/snapserv/nagopher-checks/mod-frrouting/goffr"
-	"github.com/snapserv/nagopher-checks/shared"
+	"github.com/snapserv/nagocheck/mod-frrouting/goffr"
+	"github.com/snapserv/nagocheck/shared"
 	"math"
 	"net"
 	"strings"

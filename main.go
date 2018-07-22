@@ -1,5 +1,5 @@
 /*
- * nagopher-checks - Reliable and lightweight Nagios plugins written in Go
+ * nagocheck - Reliable and lightweight Nagios plugins written in Go
  * Copyright (C) 2018  Pascal Mathis
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,9 +20,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/snapserv/nagopher-checks/mod-frrouting"
-	"github.com/snapserv/nagopher-checks/mod-system"
-	"github.com/snapserv/nagopher-checks/shared"
+	"github.com/snapserv/nagocheck/mod-frrouting"
+	"github.com/snapserv/nagocheck/mod-system"
+	"github.com/snapserv/nagocheck/shared"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"runtime"
 	"strings"
@@ -53,7 +53,7 @@ func main() {
 		}
 	}
 
-	kingpin.Version(fmt.Sprintf("nagopher-checks, version %s (commit: %s)\nbuild date: %s, runtime: %s",
+	kingpin.Version(fmt.Sprintf("nagocheck, version %s (commit: %s)\nbuild date: %s, runtime: %s",
 		BuildVersion, BuildCommit, BuildDate, runtime.Version()))
 	kingpin.CommandLine.HelpFlag.Short('h')
 	kingpin.CommandLine.VersionFlag.Short('V')

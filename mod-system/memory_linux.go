@@ -1,5 +1,5 @@
 /*
- * nagopher-checks - Reliable and lightweight Nagios plugins written in Go
+ * nagocheck - Reliable and lightweight Nagios plugins written in Go
  * Copyright (C) 2018  Pascal Mathis
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,7 +20,7 @@ package modsystem
 
 import (
 	"fmt"
-	"github.com/snapserv/nagopher-checks/shared"
+	"github.com/snapserv/nagocheck/shared"
 	"io/ioutil"
 	"regexp"
 	"strconv"

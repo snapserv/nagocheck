@@ -1,5 +1,5 @@
 /*
- * nagopher-checks - Reliable and lightweight Nagios plugins written in Go
+ * nagocheck - Reliable and lightweight Nagios plugins written in Go
  * Copyright (C) 2018  Pascal Mathis
  *
  * This program is free software: you can redistribute it and/or modify
@@ -95,8 +95,8 @@ func (p *BasePlugin) ExecuteCheck(check *nagopher.Check) {
 // chosen wisely) and a persistent store, which is also named by the unique key passed. This is especially useful when
 // used with contexts like 'DeltaContext', which compare the current measurement against a previously measurement.
 func (p *BasePlugin) ExecutePersistentCheck(check *nagopher.Check, uniqueKey string, store interface{}) {
-	// Prefix unique key with 'nagopher-checks.'
-	uniqueKey = "nagopher-checks." + uniqueKey
+	// Prefix unique key with 'nagocheck.'
+	uniqueKey = "nagocheck." + uniqueKey
 
 	// Attempt to grab flock on unique key
 	fileLock := p.createFlock(uniqueKey)

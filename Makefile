@@ -8,7 +8,7 @@ GORELEASER     = goreleaser
 BUILD_DATE := $(shell date +'%Y-%m-%d_%H:%M:%S')
 BUILD_COMMIT := $(shell git show -q --format='%H' HEAD)
 
-PACKAGE = nagopher-checks
+PACKAGE = nagocheck
 TARGET  = $(CURDIR)/$(PACKAGE)
 PKGS    = $(shell $(GO) list ./... | grep -v "$(PACKAGE)/shared")
 
