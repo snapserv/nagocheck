@@ -1,6 +1,6 @@
 /*
  * nagocheck - Reliable and lightweight Nagios plugins written in Go
- * Copyright (C) 2018  Pascal Mathis
+ * Copyright (C) 2018-2019  Pascal Mathis
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

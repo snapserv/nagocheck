@@ -1,6 +1,6 @@
 /*
  * nagocheck - Reliable and lightweight Nagios plugins written in Go
- * Copyright (C) 2018  Pascal Mathis
+ * Copyright (C) 2018-2019  Pascal Mathis
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,9 +21,9 @@ package modfrrouting
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/snapserv/nagopher"
 	"github.com/snapserv/nagocheck/mod-frrouting/goffr"
 	"github.com/snapserv/nagocheck/shared"
+	"github.com/snapserv/nagopher"
 	"math"
 	"net"
 	"strings"
