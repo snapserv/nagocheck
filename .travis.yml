@@ -1,7 +1,8 @@
 os: linux
 language: go
 env:
-  - GO111MODULE=on
+  global:
+    - GO111MODULE=on
 
 addons:
   apt:
