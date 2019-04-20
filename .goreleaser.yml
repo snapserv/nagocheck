@@ -19,9 +19,9 @@ builds:
       - 6
       - 7
 
-archive:
-  format: tar.gz
-  wrap_in_directory: true
+archives:
+  - format: tar.gz
+    wrap_in_directory: true
 
 nfpm:
   vendor: Pascal Mathis
