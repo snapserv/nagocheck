@@ -1,5 +1,7 @@
 os: linux
 language: go
+env:
+  - GO111MODULE=on
 
 addons:
   apt:
@@ -8,9 +10,9 @@ addons:
 
 matrix:
   include:
-    - go: 1.9.x
-    - go: 1.10.x
+    - go: 1.12.x
       env: NAGOCHECK_DEPLOY=1
+    - go: 1.11.x
 
 install:
   - make devel-deps

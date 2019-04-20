@@ -16,19 +16,15 @@ PKGS    = $(shell $(GO) list ./... | grep -v "$(PACKAGE)/shared")
 all: lint test build
 
 .PHONY: build
-build: deps
+build:
 	$(GO) build \
 		-ldflags "-X main.BuildDate=$(BUILD_DATE) -X main.BuildCommit=$(BUILD_COMMIT)" \
 		-o $(TARGET) .
 
-.PHONY: deps
-deps:
-	$(GO) get -d -v -t ./...
-
 .PHONY: devel-deps
-devel-deps: deps
-	$(GO) get github.com/golang/lint/golint
-	$(GO) get github.com/mattn/goveralls
+devel-deps:
+	$(GO) get -u golang.org/x/lint/golint
+	$(GO) get -u github.com/mattn/goveralls
 
 .PHONY: lint
 lint: devel-deps
