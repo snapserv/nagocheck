@@ -97,11 +97,11 @@ func (p *memoryPlugin) Probe(warnings *nagopher.WarningCollection) (metrics []na
 	metrics = append(metrics,
 		nagopher.NewNumericMetric("usage", usagePercent, "%", nil, ""),
 
-		nagopher.NewNumericMetric("active", memoryUsage.active, "KB", valueRange, ""),
-		nagopher.NewNumericMetric("inactive", memoryUsage.inactive, "KB", valueRange, ""),
-		nagopher.NewNumericMetric("buffers", memoryUsage.buffers, "KB", valueRange, ""),
-		nagopher.NewNumericMetric("cached", memoryUsage.cached, "KB", valueRange, ""),
-		nagopher.NewNumericMetric("total", memoryUsage.total, "KB", valueRange, ""),
+		nagopher.NewNumericMetric("active", memoryUsage.active, "B", valueRange, ""),
+		nagopher.NewNumericMetric("inactive", memoryUsage.inactive, "B", valueRange, ""),
+		nagopher.NewNumericMetric("buffers", memoryUsage.buffers, "B", valueRange, ""),
+		nagopher.NewNumericMetric("cached", memoryUsage.cached, "B", valueRange, ""),
+		nagopher.NewNumericMetric("total", memoryUsage.total, "B", valueRange, ""),
 	)
 
 	return metrics, nil
