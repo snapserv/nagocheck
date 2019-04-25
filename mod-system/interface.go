@@ -124,7 +124,7 @@ func newInterfaceSummary(plugin *interfacePlugin) *interfaceSummary {
 }
 
 func (s *interfaceSummary) Ok(check nagopher.Check) string {
-	var interfaceSpeed string = "N/A"
+	var interfaceSpeed = "N/A"
 	resultCollection := check.Results()
 
 	interfaceState := resultCollection.GetStringMetricValue("state").OrElse("N/A")

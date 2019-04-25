@@ -82,6 +82,7 @@ type pluginSummarizer struct {
 	plugin Plugin
 }
 
+// NewPlugin instantiates a new BasePlugin, which should be inherited by user-defined plugin types
 func NewPlugin() Plugin {
 	return &basePlugin{}
 }

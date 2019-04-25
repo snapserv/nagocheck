@@ -18,6 +18,7 @@
 
 package shared
 
+// Module collects several plugin commands underneath a module command and offers the possibility to define CLI flags
 type Module interface {
 	DefineFlags(KingpinNode)
 	Execute(Plugin)
@@ -26,6 +27,7 @@ type Module interface {
 
 type baseModule struct{}
 
+// NewBaseModule instantiates a new BaseModule, which should be inherited by user-defined module types
 func NewBaseModule() Module {
 	return &baseModule{}
 }
