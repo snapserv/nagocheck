@@ -31,18 +31,18 @@ import (
 )
 
 type bgpNeighborPlugin struct {
-	*shared.BasePlugin
+	shared.Plugin
 
 	NeighborIP       net.IP
 	IsCritical       bool
-	PrefixLimitRange *nagopher.Range
-	UptimeRange      *nagopher.Range
+	PrefixLimitRange nagopher.OptionalBounds
+	UptimeRange      nagopher.OptionalBounds
 
 	module *frroutingModule
 }
 
 type bgpNeighborSummary struct {
-	*shared.BasePluginSummary
+	shared.PluginSummarizer
 }
 
 type bgpNeighborStatsCollection map[string]bgpNeighborStats
@@ -78,18 +78,18 @@ type bgpNeighborAFStats struct {
 }
 
 type uptimeContext struct {
-	*nagopher.ScalarContext
+	nagopher.Context
 }
 
 func newBgpNeighborPlugin(module *frroutingModule) *bgpNeighborPlugin {
 	return &bgpNeighborPlugin{
-		BasePlugin: shared.NewPlugin(),
-		module:     module,
+		Plugin: shared.NewPlugin(),
+		module: module,
 	}
 }
 
-func (p *bgpNeighborPlugin) DefineFlags(kp shared.KingpinInterface) {
-	p.BasePlugin.DefineFlags(kp, false)
+func (p *bgpNeighborPlugin) DefineFlags(kp shared.KingpinNode) {
+	p.Plugin.DefineDefaultFlags(kp)
 
 	kp.Arg("neighbor", "Specifies the IP address of neighbor for which the statistics should be fetched. Both IPv4 "+
 		"IPv6 are supported without specifying the address family explicitly.").
@@ -102,22 +102,22 @@ func (p *bgpNeighborPlugin) DefineFlags(kp shared.KingpinInterface) {
 		Short('c').
 		BoolVar(&p.IsCritical)
 
-	shared.NagopherRangeVar(kp.Flag("prefix-limit", "Range for prefix limit usage given as Nagios range specifier. "+
+	shared.NagopherBoundsVar(kp.Flag("prefix-limit", "Range for prefix limit usage given as Nagios range specifier. "+
 		"Plugin will return WARNING state in case the range does not match. If no prefix limit was configured, this "+
 		"check gets ignored.").Short('l'), &p.PrefixLimitRange)
 
-	shared.NagopherRangeVar(kp.Flag("uptime", "Range for neighbor uptime (state=ESTABLISHED) given as Nagios range "+
+	shared.NagopherBoundsVar(kp.Flag("uptime", "Range for neighbor uptime (state=ESTABLISHED) given as Nagios range "+
 		"specifier. Plugin will return WARNING state in case the range does not match. This allows to alert when a "+
 		"session was recently established.").Short('u'), &p.UptimeRange)
 }
 
 func (p *bgpNeighborPlugin) Execute() {
-	problemState := nagopher.StateWarning
+	problemState := nagopher.StateWarning()
 	if p.IsCritical {
-		problemState = nagopher.StateCritical
+		problemState = nagopher.StateCritical()
 	}
 
-	check := nagopher.NewCheck("bgp_neighbor", newBgpNeighborSummary())
+	check := nagopher.NewCheck("bgp_neighbor", newBgpNeighborSummary(p))
 	check.AttachResources(shared.NewPluginResource(p))
 	check.AttachContexts(
 		nagopher.NewStringInfoContext("info_description"),
@@ -127,18 +127,18 @@ func (p *bgpNeighborPlugin) Execute() {
 		nagopher.NewStringInfoContext("info_reset_reason"),
 		nagopher.NewStringInfoContext("info_notification_reason"),
 
-		nagopher.NewStringMatchContext("state", []string{"ESTABLISHED"}, problemState),
+		nagopher.NewStringMatchContext("state", problemState, []string{"ESTABLISHED"}),
 		nagopher.NewScalarContext("last_state_change", nil, nil),
-		nagopher.NewScalarContext("prefix_limit_usage", p.PrefixLimitRange, nil),
+		nagopher.NewScalarContext("prefix_limit_usage", nagopher.OptionalBoundsPtr(p.PrefixLimitRange), nil),
 		nagopher.NewScalarContext("prefix_count", nil, nil),
 
-		newUptimeContext("uptime", p.UptimeRange, nil),
+		newUptimeContext("uptime", nagopher.OptionalBoundsPtr(p.UptimeRange), nil),
 	)
 
 	p.ExecuteCheck(check)
 }
 
-func (p *bgpNeighborPlugin) Probe(warnings *nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
+func (p *bgpNeighborPlugin) Probe(warnings nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
 	neighbor, err := p.fetchStatistics()
 	if err != nil {
 		return metrics, err
@@ -146,23 +146,23 @@ func (p *bgpNeighborPlugin) Probe(warnings *nagopher.WarningCollection) (metrics
 
 	lastStateChangeSeconds := shared.Round(neighbor.lastStateChange.Seconds(), 0)
 	metrics = append(metrics,
-		nagopher.NewStringMetric("state", neighbor.OperationalState, ""),
-		nagopher.NewNumericMetric("last_state_change", lastStateChangeSeconds,
+		nagopher.MustNewStringMetric("state", neighbor.OperationalState, ""),
+		nagopher.MustNewNumericMetric("last_state_change", lastStateChangeSeconds,
 			"s", nil, ""),
-		nagopher.NewNumericMetric("prefix_count", float64(neighbor.prefixUsageTotal),
+		nagopher.MustNewNumericMetric("prefix_count", float64(neighbor.prefixUsageTotal),
 			"", nil, ""),
 
-		nagopher.NewStringMetric("info_description",
+		nagopher.MustNewStringMetric("info_description",
 			fmt.Sprintf("description: %s", neighbor.Description),
 			""),
 
-		nagopher.NewStringMetric("info_session_1", fmt.Sprintf(
+		nagopher.MustNewStringMetric("info_session_1", fmt.Sprintf(
 			"session: AS%d[%s:%d] <-> AS%d[%s:%d]",
 			neighbor.RemoteASN, neighbor.RemoteHost, neighbor.RemotePort,
 			neighbor.LocalASN, neighbor.LocalHost, neighbor.LocalPort),
 			""),
 
-		nagopher.NewStringMetric("info_session_2", fmt.Sprintf(
+		nagopher.MustNewStringMetric("info_session_2", fmt.Sprintf(
 			"session: Version=%d RemoteRID=%s",
 			neighbor.Version, neighbor.RemoteRouterID),
 			""),
@@ -170,13 +170,13 @@ func (p *bgpNeighborPlugin) Probe(warnings *nagopher.WarningCollection) (metrics
 
 	// Only add prefix limit usage statistics if a prefix limit was set
 	if neighbor.prefixLimitTotal > 0 {
-		metrics = append(metrics, nagopher.NewNumericMetric("prefix_limit_usage",
+		metrics = append(metrics, nagopher.MustNewNumericMetric("prefix_limit_usage",
 			float64(neighbor.prefixLimitUsagePercent), "%", nil, ""))
 	}
 
 	// Only add uptime metric (redundant with last state change metric) if state=='ESTABLISHED'
 	if neighbor.OperationalState == "ESTABLISHED" {
-		metrics = append(metrics, nagopher.NewNumericMetric("uptime", lastStateChangeSeconds, "s", nil, ""))
+		metrics = append(metrics, nagopher.MustNewNumericMetric("uptime", lastStateChangeSeconds, "s", nil, ""))
 	}
 
 	// Display additional information about prefix usage
@@ -186,16 +186,16 @@ func (p *bgpNeighborPlugin) Probe(warnings *nagopher.WarningCollection) (metrics
 	} else {
 		usageString += ", no maximum set"
 	}
-	metrics = append(metrics, nagopher.NewStringMetric("info_prefix_usage", usageString, ""))
+	metrics = append(metrics, nagopher.MustNewStringMetric("info_prefix_usage", usageString, ""))
 
 	// Display last reset/notification reason if neighbor has state!='ESTABLISHED' and not reason is not empty
 	if neighbor.OperationalState != "ESTABLISHED" {
 		if neighbor.ResetReason != "" {
-			metrics = append(metrics, nagopher.NewStringMetric("info_reset_reason",
+			metrics = append(metrics, nagopher.MustNewStringMetric("info_reset_reason",
 				fmt.Sprintf("last reset reason: %s", neighbor.ResetReason), ""))
 		}
 		if neighbor.NotificationReason != "" {
-			metrics = append(metrics, nagopher.NewStringMetric("info_notification_reason",
+			metrics = append(metrics, nagopher.MustNewStringMetric("info_notification_reason",
 				fmt.Sprintf("last notification reason: %s", neighbor.NotificationReason), ""))
 		}
 	}
@@ -266,16 +266,16 @@ func (p *bgpNeighborPlugin) fetchStatistics() (*bgpNeighborStats, error) {
 	return &neighbor, nil
 }
 
-func newBgpNeighborSummary() *bgpNeighborSummary {
+func newBgpNeighborSummary(plugin *bgpNeighborPlugin) *bgpNeighborSummary {
 	return &bgpNeighborSummary{
-		BasePluginSummary: shared.NewPluginSummary(),
+		PluginSummarizer: shared.NewPluginSummarizer(plugin),
 	}
 }
 
-func (s *bgpNeighborSummary) Ok(check *nagopher.Check) string {
+func (s *bgpNeighborSummary) Ok(check nagopher.Check) string {
 	resultCollection := check.Results()
 
-	lastStateChange := s.GetNumericMetricValue(resultCollection, "last_state_change", math.NaN())
+	lastStateChange := resultCollection.GetNumericMetricValue("last_state_change").OrElse(math.NaN())
 	lastStateChangeString := "N/A"
 	if !math.IsNaN(lastStateChange) {
 		if lastStateChange > 0 {
@@ -290,24 +290,27 @@ func (s *bgpNeighborSummary) Ok(check *nagopher.Check) string {
 
 	return fmt.Sprintf(
 		"state is %s since %s",
-		s.GetStringMetricValue(resultCollection, "state", "N/A"),
+		resultCollection.GetStringMetricValue("state").OrElse("N/A"),
 		lastStateChangeString,
 	)
 }
 
-func (s *bgpNeighborSummary) Problem(check *nagopher.Check) string {
-	mostSignificantResult := check.Results().MostSignificantResult()
-	if mostSignificantResult != nil && mostSignificantResult.Metric().Name() == "state" {
-		return s.Ok(check)
+func (s *bgpNeighborSummary) Problem(check nagopher.Check) string {
+	result, err := check.Results().MostSignificantResult().Get()
+	if err == nil && result != nil {
+		metric, err := result.Metric().Get()
+		if err == nil && metric != nil && metric.Name() == "state" {
+			return s.Ok(check)
+		}
 	}
 
-	return s.BasePluginSummary.Problem(check)
+	return s.PluginSummarizer.Problem(check)
 }
 
-func newUptimeContext(name string, warningRange *nagopher.Range, criticalRange *nagopher.Range) *uptimeContext {
-	return &uptimeContext{nagopher.NewScalarContext(name, warningRange, criticalRange)}
+func newUptimeContext(name string, warningThreshold *nagopher.Bounds, criticalThreshold *nagopher.Bounds) nagopher.Context {
+	return &uptimeContext{nagopher.NewScalarContext(name, warningThreshold, criticalThreshold)}
 }
 
-func (c *uptimeContext) Performance(metric nagopher.Metric, resource nagopher.Resource) *nagopher.PerfData {
-	return nil
+func (c *uptimeContext) Performance(metric nagopher.Metric, resource nagopher.Resource) (nagopher.OptionalPerfData, error) {
+	return nagopher.OptionalPerfData{}, nil
 }

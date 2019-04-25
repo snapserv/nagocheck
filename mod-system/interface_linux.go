@@ -26,7 +26,7 @@ import (
 	"strings"
 )
 
-func getInterfaceStats(name string, warnings *nagopher.WarningCollection) (*interfaceStats, error) {
+func getInterfaceStats(name string, warnings nagopher.WarningCollection) (*interfaceStats, error) {
 	var err error
 	var state, duplex string
 	var speed, txErrors, rxErrors int

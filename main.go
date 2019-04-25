@@ -42,14 +42,14 @@ func main() {
 	}
 
 	for _, moduleCommand := range moduleCommands {
-		moduleDescription := "Check Module: " + moduleCommand.Description
-		moduleClause := kingpin.Command(moduleCommand.Name, moduleDescription)
-		moduleCommand.Module.DefineFlags(moduleClause)
+		moduleDescription := "Check Module: " + moduleCommand.Description()
+		moduleClause := kingpin.Command(moduleCommand.Name(), moduleDescription)
+		moduleCommand.Module().DefineFlags(moduleClause)
 
-		for _, pluginCommand := range moduleCommand.PluginCommands {
-			pluginDescription := fmt.Sprintf("%s: %s", moduleCommand.Description, pluginCommand.Description)
-			pluginClause := moduleClause.Command(pluginCommand.Name, pluginDescription)
-			pluginCommand.Plugin.DefineFlags(pluginClause)
+		for _, pluginCommand := range moduleCommand.PluginCommands() {
+			pluginDescription := fmt.Sprintf("%s: %s", moduleCommand.Description(), pluginCommand.Description())
+			pluginClause := moduleClause.Command(pluginCommand.Name(), pluginDescription)
+			pluginCommand.Plugin().DefineFlags(pluginClause)
 		}
 	}
 
@@ -63,10 +63,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	pluginCommand, err := moduleCommand.PluginCommands.GetByName(commandParts[1])
+	pluginCommand, err := moduleCommand.PluginCommands().GetByName(commandParts[1])
 	if err != nil {
 		panic(err)
 	}
 
-	moduleCommand.Module.Execute(pluginCommand.Plugin)
+	moduleCommand.Module().Execute(pluginCommand.Plugin())
 }

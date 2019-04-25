@@ -29,12 +29,18 @@ import (
 // LoadPersistentStore loads a persistent shm-based store, which can represent any structure/type as long as it can be
 // unmarshalled by the builtin 'json.Unmarshal' function. Please note that this function should only be called when
 // protected by a flock, as several processes operating the same store can lead to data loss.
-func LoadPersistentStore(identifier string, v interface{}) error {
+func LoadPersistentStore(identifier string, v interface{}) (rerr error) {
 	file, err := shm.Open(identifier, os.O_CREATE|os.O_RDONLY|syscall.O_DSYNC|syscall.O_RSYNC, 0600)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+
+	defer func() {
+		err := file.Close()
+		if err != nil {
+			rerr = err
+		}
+	}()
 
 	bytes, err := ioutil.ReadAll(file)
 	if err != nil {
@@ -53,7 +59,7 @@ func LoadPersistentStore(identifier string, v interface{}) error {
 // SavePersistentStore stores a persistent shm-based store, which can represent any structure/type as long as it can be
 // marshalled by the builtin 'json.Marshal' function. Please note that this function should only be called when
 // protected by a flock, as several processes operating the same store can lead to data loss.
-func SavePersistentStore(identifier string, v interface{}) error {
+func SavePersistentStore(identifier string, v interface{}) (rerr error) {
 	bytes, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -63,7 +69,13 @@ func SavePersistentStore(identifier string, v interface{}) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+
+	defer func() {
+		err := file.Close()
+		if err != nil {
+			rerr = err
+		}
+	}()
 
 	if _, err = file.Write(bytes); err != nil {
 		return err

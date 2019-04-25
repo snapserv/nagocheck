@@ -31,70 +31,98 @@ import (
 // MetaNcPlugin contains the metadata key for storing the plugin instance.
 const MetaNcPlugin = "nc#plugin"
 
-// KingpinInterface is a generic interface for kingpin, which is implemented by both "kingpin.Application" and
+// KingpinNode is a generic interface for kingpin, which is implemented by both "kingpin.Application" and
 // "kingpin.CmdClause". This allows us to define a single "DefineFlags" method in the "Plugin" interface, which can
 // handle both top-level and command-level flags.
-type KingpinInterface interface {
+type KingpinNode interface {
 	Arg(name, help string) *kingpin.ArgClause
 	Flag(name, help string) *kingpin.FlagClause
 }
 
 // Plugin represents a interface for all plugin types.
 type Plugin interface {
-	DefineFlags(kp KingpinInterface)
+	DefineFlags(kp KingpinNode)
+	DefineDefaultFlags(kp KingpinNode)
+	DefineDefaultThresholds(kp KingpinNode)
+
 	Execute()
+	ExecuteCheck(check nagopher.Check)
+	ExecutePersistentCheck(check nagopher.Check, uniqueKey string, store interface{})
+	Probe(nagopher.WarningCollection) ([]nagopher.Metric, error)
 
-	Probe(*nagopher.WarningCollection) ([]nagopher.Metric, error)
+	WarningThreshold() nagopher.OptionalBounds
+	CriticalThreshold() nagopher.OptionalBounds
 }
 
-// BasePlugin represents a generic plugin from which all other plugin types should originate.
-type BasePlugin struct {
-	Verbose       bool
-	WarningRange  *nagopher.Range
-	CriticalRange *nagopher.Range
+// PluginResource represents a resource tied to a plugin
+type PluginResource interface {
+	nagopher.Resource
+	Plugin() Plugin
 }
 
-// BasePluginResource represents a generic nagopher 'BaseResource' linked to a plugin.
-type BasePluginResource struct {
-	*nagopher.BaseResource
-	basePlugin Plugin
+// PluginSummarizer represents a summarizer tied to a plugin
+type PluginSummarizer interface {
+	nagopher.Summarizer
+	Plugin() Plugin
 }
 
-// BasePluginSummary represents a generic nagopher 'BaseSummary'. While it does not currently offer any additional
-// methods or attributes, it can be easily extended within the future. All plugins are supposed to use this type.
-type BasePluginSummary struct {
-	*nagopher.BaseSummary
+type basePlugin struct {
+	verbose           bool
+	warningThreshold  nagopher.OptionalBounds
+	criticalThreshold nagopher.OptionalBounds
 }
 
-// NewPlugin instantiates 'BasePlugin'.
-func NewPlugin() *BasePlugin {
-	return &BasePlugin{}
+type pluginResource struct {
+	nagopher.Resource
+	plugin Plugin
 }
 
-// DefineFlags defines common flags which should be provided by all plugins. It will also define flags for the default
-// ranges, unless p.useDefaultRanges is set to false.
-func (p *BasePlugin) DefineFlags(kp KingpinInterface, useDefaultRanges bool) {
+type pluginSummarizer struct {
+	nagopher.Summarizer
+	plugin Plugin
+}
+
+func NewPlugin() Plugin {
+	return &basePlugin{}
+}
+
+func (p *basePlugin) DefineFlags(kp KingpinNode) {
+	p.DefineDefaultFlags(kp)
+	p.DefineDefaultThresholds(kp)
+}
+
+func (p *basePlugin) DefineDefaultFlags(kp KingpinNode) {
 	kp.Flag("verbose", "Enable verbose plugin output.").
-		Short('v').BoolVar(&p.Verbose)
+		Short('v').BoolVar(&p.verbose)
+}
 
-	if useDefaultRanges {
-		NagopherRangeVar(kp.Flag("warning", "Warning threshold formatted as Nagios range specifier.").
-			Short('w'), &p.WarningRange)
-		NagopherRangeVar(kp.Flag("critical", "Critical threshold formatted as Nagios range specifier.").
-			Short('c'), &p.CriticalRange)
-	}
+func (p *basePlugin) DefineDefaultThresholds(kp KingpinNode) {
+	NagopherBoundsVar(kp.Flag("warning", "Warning threshold formatted as Nagios range specifier.").
+		Short('w'), &p.warningThreshold)
+	NagopherBoundsVar(kp.Flag("critical", "Critical threshold formatted as Nagios range specifier.").
+		Short('c'), &p.criticalThreshold)
+}
+
+func (p *basePlugin) Execute() {}
+
+func (p basePlugin) WarningThreshold() nagopher.OptionalBounds {
+	return p.warningThreshold
+}
+
+func (p basePlugin) CriticalThreshold() nagopher.OptionalBounds {
+	return p.criticalThreshold
 }
 
 // ExecuteCheck is a helper method which creates a new nagopher 'Runtime', executes a check and exits
-func (p *BasePlugin) ExecuteCheck(check *nagopher.Check) {
-	runtime := nagopher.NewRuntime(p.Verbose)
+func (p basePlugin) ExecuteCheck(check nagopher.Check) {
+	runtime := nagopher.NewRuntime(p.verbose)
 	runtime.ExecuteAndExit(check)
 }
 
 // ExecutePersistentCheck is a helper method which extends Execute() with flock (based on given unique key, which should be
 // chosen wisely) and a persistent store, which is also named by the unique key passed. This is especially useful when
 // used with contexts like 'DeltaContext', which compare the current measurement against a previously measurement.
-func (p *BasePlugin) ExecutePersistentCheck(check *nagopher.Check, uniqueKey string, store interface{}) {
+func (p *basePlugin) ExecutePersistentCheck(check nagopher.Check, uniqueKey string, store interface{}) {
 	// Prefix unique key with 'nagocheck.'
 	uniqueKey = "nagocheck." + uniqueKey
 
@@ -111,7 +139,7 @@ func (p *BasePlugin) ExecutePersistentCheck(check *nagopher.Check, uniqueKey str
 	}
 
 	// Execute check with nagopher runtime
-	runtime := nagopher.NewRuntime(p.Verbose)
+	runtime := nagopher.NewRuntime(p.verbose)
 	result := runtime.Execute(check)
 
 	// Save plugin persistence store
@@ -124,22 +152,22 @@ func (p *BasePlugin) ExecutePersistentCheck(check *nagopher.Check, uniqueKey str
 	fileLock.Unlock()
 
 	// Print plugin output and exit with the according exit code
-	fmt.Print(result.Output)
-	os.Exit(result.ExitCode)
+	fmt.Print(result.Output())
+	os.Exit(int(result.ExitCode()))
 }
 
 // Probe represents the method executing the actual check/metrics logic and should be overridden by each plugin for
 // returning metrics. It also supports adding warnings through the passed 'WarningCollection' or returning an error in
 // case metric collection goes wrong.
-func (p *BasePlugin) Probe(warnings *nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
+func (p *basePlugin) Probe(warnings nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
 	return metrics, nil
 }
 
-func (p *BasePlugin) createFlock(identifier string) *flock.Flock {
+func (p *basePlugin) createFlock(identifier string) *flock.Flock {
 	return flock.NewFlock(fmt.Sprintf("/tmp/.%s.lock", identifier))
 }
 
-func (p *BasePlugin) ensureFlock(flock *flock.Flock) error {
+func (p *basePlugin) ensureFlock(flock *flock.Flock) error {
 	err := RetryDuring(10*time.Second, 100*time.Millisecond, func() error {
 		isLocked, err := flock.TryLock()
 		if err != nil {
@@ -156,22 +184,33 @@ func (p *BasePlugin) ensureFlock(flock *flock.Flock) error {
 	return err
 }
 
-// NewPluginResource instantiates 'BasePluginResource' and links it with the given plugin.
-func NewPluginResource(plugin Plugin) *BasePluginResource {
-	return &BasePluginResource{
-		BaseResource: nagopher.NewResource(),
-		basePlugin:   plugin,
+// NewPluginResource instantiates 'pluginResource' and links it with the given plugin.
+func NewPluginResource(plugin Plugin) PluginResource {
+	return &pluginResource{
+		Resource: nagopher.NewResource(),
+		plugin:   plugin,
 	}
 }
 
 // Probe is an override for 'BaseResource.Probe(...)', which is being called by nagopher for collecting metrics. This
 // method should never be overridden by any of the plugins, as it will just pass all arguments to 'Plugin.Probe()',
 // where the plugins should define their actual check/metrics logic.
-func (pr *BasePluginResource) Probe(warnings *nagopher.WarningCollection) ([]nagopher.Metric, error) {
-	return pr.basePlugin.Probe(warnings)
+func (r *pluginResource) Probe(warnings nagopher.WarningCollection) ([]nagopher.Metric, error) {
+	return r.plugin.Probe(warnings)
 }
 
-// NewPluginSummary instantiates 'BasePluginSummary'.
-func NewPluginSummary() *BasePluginSummary {
-	return &BasePluginSummary{nagopher.NewBaseSummary()}
+func (r *pluginResource) Plugin() Plugin {
+	return r.plugin
+}
+
+// NewPluginSummarizer instantiates 'pluginSummarizer'.
+func NewPluginSummarizer(plugin Plugin) PluginSummarizer {
+	return &pluginSummarizer{
+		Summarizer: nagopher.NewSummarizer(),
+		plugin:     plugin,
+	}
+}
+
+func (s pluginSummarizer) Plugin() Plugin {
+	return s.plugin
 }

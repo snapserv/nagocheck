@@ -21,7 +21,7 @@ package modsystem
 import "github.com/snapserv/nagocheck/shared"
 
 type systemModule struct {
-	*shared.BaseModule
+	shared.Module
 }
 
 // GetModuleCommand is a helper method for instantiating 'systemModule' and calling the 'GetModuleCommand' method to
@@ -30,31 +30,17 @@ func GetModuleCommand() shared.ModuleCommand {
 	return newSystemModule().GetModuleCommand()
 }
 
-func newSystemModule() *systemModule {
-	return &systemModule{}
+func newSystemModule() shared.Module {
+	return &systemModule{
+		Module: shared.NewBaseModule(),
+	}
 }
 
 func (m *systemModule) GetModuleCommand() shared.ModuleCommand {
-	return shared.ModuleCommand{
-		Name:        "system",
-		Description: "Operating System",
-		Module:      m,
-		PluginCommands: shared.PluginCommands{
-			{
-				Name:        "interface",
-				Description: "Network Interface",
-				Plugin:      newInterfacePlugin(),
-			},
-			{
-				Name:        "load",
-				Description: "Load Average",
-				Plugin:      newLoadPlugin(),
-			},
-			{
-				Name:        "memory",
-				Description: "Memory Usage",
-				Plugin:      newMemoryPlugin(),
-			},
-		},
-	}
+	return shared.NewModuleCommand(
+		"system", "Operating System", m,
+		shared.NewPluginCommand("interface", "Network Interface", newInterfacePlugin()),
+		shared.NewPluginCommand("load", "Load Average", newLoadPlugin()),
+		shared.NewPluginCommand("memory", "Memory Usage", newMemoryPlugin()),
+	)
 }

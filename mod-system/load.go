@@ -27,44 +27,45 @@ import (
 )
 
 type loadPlugin struct {
-	*shared.BasePlugin
-
+	shared.Plugin
 	PerCPU bool
 }
 
-type loadSummary struct {
-	*shared.BasePluginSummary
+type loadSummarizer struct {
+	shared.PluginSummarizer
 }
 
 func newLoadPlugin() *loadPlugin {
 	return &loadPlugin{
-		BasePlugin: shared.NewPlugin(),
+		Plugin: shared.NewPlugin(),
+		PerCPU: false,
 	}
 }
 
-func (p *loadPlugin) DefineFlags(kp shared.KingpinInterface) {
-	p.BasePlugin.DefineFlags(kp, true)
+func (p *loadPlugin) DefineFlags(kp shared.KingpinNode) {
+	p.Plugin.DefineDefaultFlags(kp)
+	p.Plugin.DefineDefaultThresholds(kp)
 
 	kp.Flag("per-cpu", "Enable per-cpu metrics (divide load average by cpu count).").BoolVar(&p.PerCPU)
 }
 
 func (p *loadPlugin) Execute() {
-	check := nagopher.NewCheck("load", newLoadSummary())
+	check := nagopher.NewCheck("load", newLoadSummarizer(p))
 	check.SetMeta(shared.MetaNcPlugin, p)
 	check.AttachResources(shared.NewPluginResource(p))
 	check.AttachContexts(
 		nagopher.NewScalarContext(
 			"load",
-			p.WarningRange,
-			p.CriticalRange,
+			nagopher.OptionalBoundsPtr(p.WarningThreshold()),
+			nagopher.OptionalBoundsPtr(p.CriticalThreshold()),
 		),
 	)
 
 	p.ExecuteCheck(check)
 }
 
-func (p *loadPlugin) Probe(warnings *nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
-	valueRange, err := nagopher.ParseRange("0:")
+func (p *loadPlugin) Probe(warnings nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
+	valueRange, err := nagopher.NewBoundsFromNagiosRange("0:")
 	if err != nil {
 		return metrics, err
 	}
@@ -82,52 +83,55 @@ func (p *loadPlugin) Probe(warnings *nagopher.WarningCollection) (metrics []nago
 			loadAverage /= float64(cpuCount)
 		}
 
-		metrics = append(metrics, nagopher.NewNumericMetric(
-			metricNames[key], loadAverage, "", valueRange, "load",
+		metrics = append(metrics, nagopher.MustNewNumericMetric(
+			metricNames[key], loadAverage, "", &valueRange, "load",
 		))
 	}
 
 	return metrics, nil
 }
 
-func newLoadSummary() *loadSummary {
-	return &loadSummary{
-		BasePluginSummary: shared.NewPluginSummary(),
+func newLoadSummarizer(plugin *loadPlugin) *loadSummarizer {
+	return &loadSummarizer{
+		PluginSummarizer: shared.NewPluginSummarizer(plugin),
 	}
 }
 
-func (s *loadSummary) Ok(check *nagopher.Check) string {
+func (s *loadSummarizer) Ok(check nagopher.Check) string {
 	resultCollection := check.Results()
 
 	return fmt.Sprintf(
 		"Load averages%s: %.2f, %.2f, %.2f",
 
 		s.getDescriptionSuffix(check),
-		shared.Round(s.GetNumericMetricValue(resultCollection, "load1", math.NaN()), 2),
-		shared.Round(s.GetNumericMetricValue(resultCollection, "load5", math.NaN()), 2),
-		shared.Round(s.GetNumericMetricValue(resultCollection, "load15", math.NaN()), 2),
+		shared.Round(resultCollection.GetNumericMetricValue("load1").OrElse(math.NaN()), 2),
+		shared.Round(resultCollection.GetNumericMetricValue("load5").OrElse(math.NaN()), 2),
+		shared.Round(resultCollection.GetNumericMetricValue("load15").OrElse(math.NaN()), 2),
 	)
 }
 
-func (s *loadSummary) Problem(check *nagopher.Check) string {
-	resultCollection := check.Results()
-	mostSignificantResult := resultCollection.MostSignificantResult()
-	if mostSignificantResult == nil {
-		return s.BaseSummary.Problem(check)
+func (s *loadSummarizer) Problem(check nagopher.Check) string {
+	mostSignificantResult, err := check.Results().MostSignificantResult().Get()
+	if err != nil || mostSignificantResult == nil {
+		return s.PluginSummarizer.Problem(check)
 	}
 
-	metric := mostSignificantResult.Metric()
+	metric, err := mostSignificantResult.Metric().Get()
+	if err != nil || metric == nil {
+		return s.PluginSummarizer.Problem(check)
+	}
+
 	metricDescription := map[string]string{
 		"load1":  "Load average of last minute",
 		"load5":  "Load average of last 5 minutes",
 		"load15": "Load average of last 15 minutes",
 	}[metric.Name()]
 
-	return fmt.Sprintf("%s%s is %s (%s)",
-		metricDescription, s.getDescriptionSuffix(check), metric.ValueString(), mostSignificantResult.Hint())
+	return fmt.Sprintf("%s%s is %s (%s)", metricDescription, s.getDescriptionSuffix(check),
+		metric.ValueString(), mostSignificantResult.Hint())
 }
 
-func (s *loadSummary) getDescriptionSuffix(check *nagopher.Check) string {
+func (s loadSummarizer) getDescriptionSuffix(check nagopher.Check) string {
 	if plugin := s.getPlugin(check); plugin != nil {
 		if plugin.PerCPU {
 			return " per CPU"
@@ -137,7 +141,7 @@ func (s *loadSummary) getDescriptionSuffix(check *nagopher.Check) string {
 	return ""
 }
 
-func (s *loadSummary) getPlugin(check *nagopher.Check) *loadPlugin {
+func (s loadSummarizer) getPlugin(check nagopher.Check) *loadPlugin {
 	rawPlugin := check.GetMeta(shared.MetaNcPlugin, nil)
 	if rawPlugin != nil {
 		if plugin, ok := rawPlugin.(*loadPlugin); ok {

@@ -24,7 +24,7 @@ import (
 )
 
 type frroutingModule struct {
-	*shared.BaseModule
+	shared.Module
 
 	GoffrSession goffr.Session
 
@@ -44,7 +44,7 @@ func newFrroutingModule() *frroutingModule {
 	return &frroutingModule{}
 }
 
-func (m *frroutingModule) DefineFlags(kp shared.KingpinInterface) {
+func (m *frroutingModule) DefineFlags(kp shared.KingpinNode) {
 	kp.Flag("mode", "Specifies the mode which should be used to connect to the FRRouting daemon, which can either be "+
 		"vtysh (recommended) or telnet.").
 		Short('m').
@@ -79,16 +79,8 @@ func (m *frroutingModule) Execute(plugin shared.Plugin) {
 }
 
 func (m *frroutingModule) GetModuleCommand() shared.ModuleCommand {
-	return shared.ModuleCommand{
-		Name:        "frrouting",
-		Description: "FRRouting",
-		Module:      m,
-		PluginCommands: shared.PluginCommands{
-			{
-				Name:        "bgp-neighbor",
-				Description: "BGP Neighbor",
-				Plugin:      newBgpNeighborPlugin(m),
-			},
-		},
-	}
+	return shared.NewModuleCommand(
+		"frrouting", "FRRouting", m,
+		shared.NewPluginCommand("bgp-neighbor", "BGP Neighbor", newBgpNeighborPlugin(m)),
+	)
 }

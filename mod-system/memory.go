@@ -26,8 +26,7 @@ import (
 )
 
 type memoryPlugin struct {
-	*shared.BasePlugin
-
+	shared.Plugin
 	CountReclaimable bool
 }
 
@@ -41,30 +40,31 @@ type memoryUsage struct {
 }
 
 type memorySummary struct {
-	*shared.BasePluginSummary
+	shared.PluginSummarizer
 }
 
 func newMemoryPlugin() *memoryPlugin {
 	return &memoryPlugin{
-		BasePlugin: shared.NewPlugin(),
+		Plugin: shared.NewPlugin(),
 	}
 }
 
-func (p *memoryPlugin) DefineFlags(kp shared.KingpinInterface) {
-	p.BasePlugin.DefineFlags(kp, true)
+func (p *memoryPlugin) DefineFlags(kp shared.KingpinNode) {
+	p.Plugin.DefineDefaultFlags(kp)
+	p.Plugin.DefineDefaultThresholds(kp)
 
 	kp.Flag("count-reclaimable", "Count reclaimable space (cached/buffers) as used.").
 		BoolVar(&p.CountReclaimable)
 }
 
 func (p *memoryPlugin) Execute() {
-	check := nagopher.NewCheck("memory", newMemorySummary())
+	check := nagopher.NewCheck("memory", newMemorySummary(p))
 	check.AttachResources(shared.NewPluginResource(p))
 	check.AttachContexts(
 		nagopher.NewScalarContext(
 			"usage",
-			p.WarningRange,
-			p.CriticalRange,
+			nagopher.OptionalBoundsPtr(p.WarningThreshold()),
+			nagopher.OptionalBoundsPtr(p.CriticalThreshold()),
 		),
 
 		nagopher.NewScalarContext("active", nil, nil),
@@ -77,8 +77,8 @@ func (p *memoryPlugin) Execute() {
 	p.ExecuteCheck(check)
 }
 
-func (p *memoryPlugin) Probe(warnings *nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
-	valueRange, err := nagopher.ParseRange("0:")
+func (p *memoryPlugin) Probe(warnings nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
+	valueRange, err := nagopher.NewBoundsFromNagiosRange("0:")
 	if err != nil {
 		return metrics, err
 	}
@@ -95,35 +95,35 @@ func (p *memoryPlugin) Probe(warnings *nagopher.WarningCollection) (metrics []na
 	usagePercent := shared.Round(100-(freeMemory/memoryUsage.total*100), 2)
 
 	metrics = append(metrics,
-		nagopher.NewNumericMetric("usage", usagePercent, "%", nil, ""),
+		nagopher.MustNewNumericMetric("usage", usagePercent, "%", nil, ""),
 
-		nagopher.NewNumericMetric("active", memoryUsage.active, "B", valueRange, ""),
-		nagopher.NewNumericMetric("inactive", memoryUsage.inactive, "B", valueRange, ""),
-		nagopher.NewNumericMetric("buffers", memoryUsage.buffers, "B", valueRange, ""),
-		nagopher.NewNumericMetric("cached", memoryUsage.cached, "B", valueRange, ""),
-		nagopher.NewNumericMetric("total", memoryUsage.total, "B", valueRange, ""),
+		nagopher.MustNewNumericMetric("active", memoryUsage.active, "B", &valueRange, ""),
+		nagopher.MustNewNumericMetric("inactive", memoryUsage.inactive, "B", &valueRange, ""),
+		nagopher.MustNewNumericMetric("buffers", memoryUsage.buffers, "B", &valueRange, ""),
+		nagopher.MustNewNumericMetric("cached", memoryUsage.cached, "B", &valueRange, ""),
+		nagopher.MustNewNumericMetric("total", memoryUsage.total, "B", &valueRange, ""),
 	)
 
 	return metrics, nil
 }
 
-func newMemorySummary() *memorySummary {
+func newMemorySummary(plugin *memoryPlugin) *memorySummary {
 	return &memorySummary{
-		BasePluginSummary: shared.NewPluginSummary(),
+		PluginSummarizer: shared.NewPluginSummarizer(plugin),
 	}
 }
 
-func (s *memorySummary) Ok(check *nagopher.Check) string {
+func (s *memorySummary) Ok(check nagopher.Check) string {
 	resultCollection := check.Results()
 
 	return fmt.Sprintf(
 		"%.2f%% used - Total:%s Active:%s Inactive:%s Buffers:%s Cached:%s",
 
-		s.GetNumericMetricValue(resultCollection, "usage", math.NaN()),
-		shared.FormatBinarySize(s.GetNumericMetricValue(resultCollection, "total", math.NaN())),
-		shared.FormatBinarySize(s.GetNumericMetricValue(resultCollection, "active", math.NaN())),
-		shared.FormatBinarySize(s.GetNumericMetricValue(resultCollection, "inactive", math.NaN())),
-		shared.FormatBinarySize(s.GetNumericMetricValue(resultCollection, "buffers", math.NaN())),
-		shared.FormatBinarySize(s.GetNumericMetricValue(resultCollection, "cached", math.NaN())),
+		resultCollection.GetNumericMetricValue("usage").OrElse(math.NaN()),
+		shared.FormatBinarySize(resultCollection.GetNumericMetricValue("total").OrElse(math.NaN())),
+		shared.FormatBinarySize(resultCollection.GetNumericMetricValue("active").OrElse(math.NaN())),
+		shared.FormatBinarySize(resultCollection.GetNumericMetricValue("inactive").OrElse(math.NaN())),
+		shared.FormatBinarySize(resultCollection.GetNumericMetricValue("buffers").OrElse(math.NaN())),
+		shared.FormatBinarySize(resultCollection.GetNumericMetricValue("cached").OrElse(math.NaN())),
 	)
 }

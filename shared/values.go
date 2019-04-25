@@ -23,22 +23,24 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-type nagopherRangeValue struct{ value **nagopher.Range }
+type nagopherBoundsValue struct {
+	value *nagopher.OptionalBounds
+}
 
-func (r *nagopherRangeValue) Set(rawValue string) error {
-	value, err := nagopher.ParseRange(rawValue)
+func (r *nagopherBoundsValue) Set(rawValue string) error {
+	value, err := nagopher.NewBoundsFromNagiosRange(rawValue)
 	if err == nil {
-		*r.value = value
+		(*r.value).Set(value)
 	}
 
 	return err
 }
 
-func (r *nagopherRangeValue) String() string {
-	return (*r.value).String()
+func (r *nagopherBoundsValue) String() string {
+	return (*r.value).OrElse(nagopher.NewBounds()).String()
 }
 
-// NagopherRangeVar is a helper method for defining kingpin flags which should be parsed as a Nagopher range specifier.
-func NagopherRangeVar(s kingpin.Settings, target **nagopher.Range) {
-	s.SetValue(&nagopherRangeValue{target})
+// NagopherBoundsVar is a helper method for defining kingpin flags which should be parsed as a Nagopher range specifier.
+func NagopherBoundsVar(s kingpin.Settings, target *nagopher.OptionalBounds) {
+	s.SetValue(&nagopherBoundsValue{target})
 }

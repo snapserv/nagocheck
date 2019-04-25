@@ -18,69 +18,24 @@
 
 package shared
 
-import "fmt"
-
-// ModuleCommands represents a collection of 'ModuleCommand' structures with additional helper methods
-type ModuleCommands []ModuleCommand
-
-// PluginCommands represents a collection of 'PluginCommand' structures with additional helper methods
-type PluginCommands []PluginCommand
-
-// ModuleCommand represents a command declaration for a module, which contains one or more plugin commands
-type ModuleCommand struct {
-	Name           string
-	Description    string
-	Module         Module
-	PluginCommands PluginCommands
-}
-
-// PluginCommand represents a command declaration for a single plugin, which contains a plugin instance for execution
-type PluginCommand struct {
-	Name        string
-	Description string
-	Plugin      Plugin
-}
-
-// Module represents a interface for all module types.
 type Module interface {
-	DefineFlags(KingpinInterface)
+	DefineFlags(KingpinNode)
 	Execute(Plugin)
 	GetModuleCommand() ModuleCommand
 }
 
-// BaseModule represents a generic module from which all other module types should originate.
-type BaseModule struct{}
+type baseModule struct{}
 
-// GetByName tries to find a 'ModuleCommand' with the given name and returns if found. An error will be returned in
-// case no module with such a name exists.
-func (mc ModuleCommands) GetByName(name string) (command ModuleCommand, _ error) {
-	for _, moduleCommand := range mc {
-		if moduleCommand.Name == name {
-			return moduleCommand, nil
-		}
-	}
-
-	return command, fmt.Errorf("could not find module command: %s", name)
+func NewBaseModule() Module {
+	return &baseModule{}
 }
 
-// GetByName tries to find a 'PluginCommand' with the given name and returns if found. An error will be returned in
-// case no plugin with such a name exists.
-func (pc PluginCommands) GetByName(name string) (command PluginCommand, _ error) {
-	for _, pluginCommand := range pc {
-		if pluginCommand.Name == name {
-			return pluginCommand, nil
-		}
-	}
+func (m *baseModule) DefineFlags(kp KingpinNode) {}
 
-	return command, fmt.Errorf("could not find plugin command: %s", name)
-}
-
-// DefineFlags defines an empty method which can be overridden by modules to specify a common subset of flags for all
-// the module plugins.
-func (m *BaseModule) DefineFlags(kp KingpinInterface) {}
-
-// Execute calls the 'Execute' method of the given plugin. This method can be overridden by modules to initialize
-// module-specific code/variables before executing the plugin OR to suppress execution of a plugin in specific cases.
-func (m *BaseModule) Execute(plugin Plugin) {
+func (m *baseModule) Execute(plugin Plugin) {
 	plugin.Execute()
+}
+
+func (m *baseModule) GetModuleCommand() ModuleCommand {
+	return nil
 }
