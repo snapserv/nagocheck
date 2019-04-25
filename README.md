@@ -2,7 +2,7 @@
 
 [![Project Release](https://img.shields.io/github/release/snapserv/nagocheck.svg)](https://github.com/snapserv/nagocheck/releases/latest)
 [![Project License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](https://github.com/snapserv/nagocheck/LICENSE.txt)
-[![Go Version Compatibility](https://img.shields.io/badge/go_version-1.9_--_1.10-brightgreen.svg)](https://golang.org/)
+[![Go Version Compatibility](https://img.shields.io/badge/go_version-1.11_--_1.12-brightgreen.svg)](https://golang.org/)
 [![Travis CI Build Status](https://img.shields.io/travis/snapserv/nagocheck/master.svg)](https://travis-ci.org/snapserv/nagocheck)
 [![Coveralls Coverage Status](https://img.shields.io/coveralls/github/snapserv/nagocheck/master.svg)](https://coveralls.io/github/snapserv/nagocheck?branch=master)
 [![Project Copyright](http://img.shields.io/badge/copyright-Pascal_Mathis-lightgrey.svg)](https://www.pascalmathis.com/)
