@@ -15,7 +15,7 @@ require (
 	github.com/theckman/go-flock v0.7.1
 	github.com/ziutek/telnet v0.0.0-20180329124119-c3b780dc415b
 	golang.org/x/crypto v0.0.0-20190424203555-c05e17bb3b2d // indirect
-	golang.org/x/sys v0.0.0-20190424175732-18eb32c0e2f0 // indirect
+	golang.org/x/sys v0.0.0-20190425045458-9f0b1ff7b46a // indirect
 	google.golang.org/appengine v1.4.0 // indirect
 	google.golang.org/genproto v0.0.0-20190418145605-e7d98fc518a7 // indirect
 	google.golang.org/grpc v1.20.1 // indirect

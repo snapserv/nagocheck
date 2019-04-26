@@ -23,16 +23,24 @@ import (
 	"github.com/snapserv/nagocheck/shared"
 	"github.com/snapserv/nagopher"
 	"math"
-	"runtime"
 )
 
 type loadPlugin struct {
 	shared.Plugin
+
+	stats  loadStats
 	PerCPU bool
 }
 
 type loadSummarizer struct {
 	shared.PluginSummarizer
+}
+
+type loadStats struct {
+	cpuCores      uint
+	loadAverage1  float64
+	loadAverage5  float64
+	loadAverage15 float64
 }
 
 func newLoadPlugin() *loadPlugin {
@@ -70,23 +78,15 @@ func (p *loadPlugin) Probe(warnings nagopher.WarningCollection) (metrics []nagop
 		return metrics, err
 	}
 
-	loadAverages, err := getLoadAverages()
-	if err != nil {
+	if err := p.stats.Collect(p.PerCPU); err != nil {
 		return metrics, err
 	}
 
-	metricNames := []string{"load1", "load5", "load15"}
-	cpuCount := runtime.NumCPU()
-
-	for key, loadAverage := range loadAverages {
-		if p.PerCPU {
-			loadAverage /= float64(cpuCount)
-		}
-
-		metrics = append(metrics, nagopher.MustNewNumericMetric(
-			metricNames[key], loadAverage, "", &valueRange, "load",
-		))
-	}
+	metrics = append(metrics,
+		nagopher.MustNewNumericMetric("load1", p.stats.loadAverage1, "", &valueRange, "load"),
+		nagopher.MustNewNumericMetric("load5", p.stats.loadAverage5, "", &valueRange, "load"),
+		nagopher.MustNewNumericMetric("load15", p.stats.loadAverage15, "", &valueRange, "load"),
+	)
 
 	return metrics, nil
 }

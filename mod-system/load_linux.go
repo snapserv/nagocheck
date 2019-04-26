@@ -21,25 +21,49 @@ package modsystem
 import (
 	"fmt"
 	"io/ioutil"
+	"runtime"
 	"strconv"
 	"strings"
 )
 
-func getLoadAverages() (loadAverages [3]float64, _ error) {
-	bytes, err := ioutil.ReadFile("/proc/loadavg")
+var procLoadavgPath = "/proc/loadavg"
+
+func (s *loadStats) Collect(perCPU bool) error {
+	s.cpuCores = uint(runtime.NumCPU())
+	if err := s.collectLoadAverages(perCPU); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *loadStats) collectLoadAverages(perCPU bool) error {
+	bytes, err := ioutil.ReadFile(procLoadavgPath)
 	if err != nil {
-		return loadAverages, fmt.Errorf("load: could not read /proc/loadavg file (%s)", err.Error())
+		return fmt.Errorf("could not read load averages from [%s]: %s", procLoadavgPath, err.Error())
 	}
 
 	values := strings.Split(string(bytes), " ")
+	if len(values) < 3 {
+		return fmt.Errorf("could not parse unknown format from [%s]: expected 3 space-separated values", procLoadavgPath)
+	}
+
+	loadAverages := make([]float64, 0, 3)
 	for i := 0; i < 3; i++ {
 		value, err := strconv.ParseFloat(values[i], strconv.IntSize)
 		if err != nil {
-			return loadAverages, fmt.Errorf("load: could not parse [%s] as float (%s)", values[i], err.Error())
+			return fmt.Errorf("could not parse [%s] as float (%s)", values[i], err.Error())
 		}
 
-		loadAverages[i] = value
+		if perCPU {
+			value /= float64(s.cpuCores)
+		}
+		loadAverages = append(loadAverages, value)
 	}
 
-	return loadAverages, nil
+	s.loadAverage1 = loadAverages[0]
+	s.loadAverage5 = loadAverages[1]
+	s.loadAverage15 = loadAverages[2]
+
+	return nil
 }
