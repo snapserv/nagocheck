@@ -23,8 +23,8 @@ build:
 
 .PHONY: devel-deps
 devel-deps:
-	$(GO) get -u golang.org/x/lint/golint
-	$(GO) get -u github.com/mattn/goveralls
+	$(GO) get golang.org/x/lint/golint
+	$(GO) get github.com/mattn/goveralls
 
 .PHONY: lint
 lint: devel-deps
