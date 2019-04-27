@@ -60,7 +60,7 @@ type bgpNeighborStats struct {
 	OperationalState   string                        `json:"bgpState"`
 	Description        string                        `json:"nbrDesc"`
 	AddressFamilies    map[string]bgpNeighborAFStats `json:"addressFamilyInfo"`
-	UpTimer            int64                         `json:"bgpTimerUpEstablishedEpoch"`
+	UpTimer            int64                         `json:"bgpTimerUpMsec"`
 	ResetTimer         int64                         `json:"lastResetTimerMsecs"`
 	ResetReason        string                        `json:"lastResetDueTo"`
 	NotificationReason string                        `json:"lastNotificationReason"`
@@ -240,10 +240,12 @@ func (p *bgpNeighborPlugin) fetchStatistics() (*bgpNeighborStats, error) {
 
 	// Parse FRR state timers (up since OR reset since) to receive 'time.Duration' objects
 	if neighbor.UpTimer > 0 {
-		// FIXME: Implement 'bgpTimerUpMsec' instead of 'bgpTimerUpEstablishedEpoch' as soon as FRRv4 gets released.
-		// This must also be changed within the JSON which is being used for JSON unmarshalling.
-		// See: https://github.com/FRRouting/frr/pull/1586/commits/d3c7efede79f88c978efadd850034d472e02cfdb
-		neighbor.lastStateChange = time.Since(time.Unix(neighbor.UpTimer, 0))
+		upTimer := fmt.Sprintf("%dms", neighbor.UpTimer)
+		neighbor.lastStateChange, err = time.ParseDuration(upTimer)
+
+		if err != nil {
+			return nil, fmt.Errorf("bgp_neighbor: could not parse up timer [%s] (%s)", upTimer, err.Error())
+		}
 	} else {
 		resetTimer := fmt.Sprintf("%dms", neighbor.ResetTimer)
 		neighbor.lastStateChange, err = time.ParseDuration(resetTimer)
