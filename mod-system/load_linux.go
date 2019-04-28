@@ -28,16 +28,16 @@ import (
 
 var procLoadavgPath = "/proc/loadavg"
 
-func (s *loadStats) Collect(perCPU bool) error {
-	s.cpuCores = uint(runtime.NumCPU())
-	if err := s.collectLoadAverages(perCPU); err != nil {
+func (r *loadResource) Collect() error {
+	r.cpuCores = uint(runtime.NumCPU())
+	if err := r.collectLoadAverages(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (s *loadStats) collectLoadAverages(perCPU bool) error {
+func (r *loadResource) collectLoadAverages() error {
 	bytes, err := ioutil.ReadFile(procLoadavgPath)
 	if err != nil {
 		return fmt.Errorf("could not read load averages from [%s]: %s", procLoadavgPath, err.Error())
@@ -55,15 +55,15 @@ func (s *loadStats) collectLoadAverages(perCPU bool) error {
 			return fmt.Errorf("could not parse [%s] as float (%s)", values[i], err.Error())
 		}
 
-		if perCPU {
-			value /= float64(s.cpuCores)
+		if r.Plugin().PerCPU {
+			value /= float64(r.cpuCores)
 		}
 		loadAverages = append(loadAverages, value)
 	}
 
-	s.loadAverage1 = loadAverages[0]
-	s.loadAverage5 = loadAverages[1]
-	s.loadAverage15 = loadAverages[2]
+	r.loadAverage1 = loadAverages[0]
+	r.loadAverage5 = loadAverages[1]
+	r.loadAverage15 = loadAverages[2]
 
 	return nil
 }

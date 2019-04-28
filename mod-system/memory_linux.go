@@ -20,47 +20,57 @@ package modsystem
 
 import (
 	"fmt"
-	"github.com/snapserv/nagocheck/shared"
+	"github.com/snapserv/nagocheck/nagocheck"
 	"io/ioutil"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-func getMemoryUsage() (*memoryUsage, error) {
-	bytes, err := ioutil.ReadFile("/proc/meminfo")
-	if err != nil {
-		return nil, fmt.Errorf("memory: could not read /proc/meminfo file (%s)", err.Error())
+var meminfoRegexp = regexp.MustCompile(`^(?P<key>\S*):\s*(?P<value>\d*)\s*kB$`)
+
+func (r *memoryResource) Collect() error {
+	if err := r.collectMemoryUsage(); err != nil {
+		return err
 	}
 
-	re, err := regexp.Compile(`^(?P<key>\S*):\s*(?P<value>\d*)\s*kB$`)
+	freeMemory := r.usageStats.free
+	if !r.Plugin().CountReclaimable {
+		freeMemory += r.usageStats.cached + r.usageStats.buffers
+	}
+	r.usagePercentage = nagocheck.Round(100-(freeMemory/r.usageStats.total*100), 2)
+
+	return nil
+}
+
+func (r *memoryResource) collectMemoryUsage() error {
+	bytes, err := ioutil.ReadFile("/proc/meminfo")
 	if err != nil {
-		return nil, fmt.Errorf("memory: could not compile regular expression (%s)", err.Error())
+		return fmt.Errorf("could not read memory usage (%s)", err.Error())
 	}
 
 	stats := make(map[string]float64)
 	lines := strings.Split(string(bytes), "\n")
 	for _, line := range lines {
-		matchMap, matched := shared.RegexpSubMatchMap(re, line)
+		matchMap, matched := nagocheck.RegexpSubMatchMap(meminfoRegexp, line)
 		if !matched {
 			continue
 		}
 
 		value, err := strconv.ParseFloat(matchMap["value"], strconv.IntSize)
 		if err != nil {
-			return nil, fmt.Errorf("memory: could not parse value [%s] as float (%s)",
-				matchMap["value"], err.Error())
+			return fmt.Errorf("could not parse [%s] as float (%s)", matchMap["value"], err.Error())
 		}
 
 		stats[matchMap["key"]] = value * 1024
 	}
 
-	return &memoryUsage{
-		active:   stats["Active"],
-		buffers:  stats["Buffers"],
-		cached:   stats["Cached"],
-		free:     stats["MemFree"],
-		inactive: stats["Inactive"],
-		total:    stats["MemTotal"],
-	}, nil
+	r.usageStats.active = stats["Active"]
+	r.usageStats.buffers = stats["Buffers"]
+	r.usageStats.cached = stats["Cached"]
+	r.usageStats.free = stats["Free"]
+	r.usageStats.inactive = stats["Inactive"]
+	r.usageStats.total = stats["MemTotal"]
+
+	return nil
 }

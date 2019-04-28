@@ -26,103 +26,93 @@ import (
 	"strings"
 )
 
-func getInterfaceStats(name string, warnings nagopher.WarningCollection) (*interfaceStats, error) {
-	var err error
-	var state, duplex string
-	var speed, txErrors, rxErrors int
+func (r *interfaceResource) Collect(warnings nagopher.WarningCollection) error {
+	device := r.Plugin().InterfaceName
 
-	if state, err = getInterfaceState(name); err != nil {
-		return nil, err
-	}
-	if speed, err = getInterfaceSpeed(name); err != nil {
-		warnings.Add(nagopher.NewWarning(err.Error()))
-	}
-	if duplex, err = getInterfaceDuplex(name); err != nil {
-		warnings.Add(nagopher.NewWarning(err.Error()))
-	}
-	if txErrors, err = getInterfaceTxErrors(name); err != nil {
-		warnings.Add(nagopher.NewWarning(err.Error()))
-	}
-	if rxErrors, err = getInterfaceRxErrors(name); err != nil {
-		warnings.Add(nagopher.NewWarning(err.Error()))
+	if err := r.collectLinkState(device); err != nil {
+		return err
 	}
 
-	return &interfaceStats{
-		State:    state,
-		Speed:    speed,
-		Duplex:   duplex,
-		TxErrors: txErrors,
-		RxErrors: rxErrors,
-	}, nil
+	if err := r.collectLinkSpeed(device); err != nil {
+		warnings.Add(nagopher.NewWarning(err.Error()))
+	}
+	if err := r.collectLinkDuplex(device); err != nil {
+		warnings.Add(nagopher.NewWarning(err.Error()))
+	}
+	if err := r.collectTransmitErrors(device); err != nil {
+		warnings.Add(nagopher.NewWarning(err.Error()))
+	}
+	if err := r.collectReceiveErrors(device); err != nil {
+		warnings.Add(nagopher.NewWarning(err.Error()))
+	}
+
+	return nil
 }
 
-func getInterfaceState(device string) (string, error) {
+func (r *interfaceResource) collectLinkState(device string) error {
 	bytes, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/operstate", device))
 	if err != nil {
-		return "", fmt.Errorf(
-			"interface: could not read /sys/class/net/<interface>/operstate file (%s)", err.Error())
+		return fmt.Errorf("could not determine link state (%s)", err.Error())
 	}
 
-	return strings.ToUpper(strings.TrimSpace(string(bytes))), nil
+	r.linkState = strings.ToUpper(strings.TrimSpace(string(bytes)))
+	return nil
 }
 
-func getInterfaceSpeed(device string) (int, error) {
+func (r *interfaceResource) collectLinkSpeed(device string) error {
 	bytes, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/speed", device))
 	if err != nil {
-		return -1, fmt.Errorf(
-			"interface: could not determine interface speed (%s)", err.Error())
+		return fmt.Errorf("could not determine link speed (%s)", err.Error())
 	}
 
 	rawSpeed := strings.TrimSpace(string(bytes))
 	speed, err := strconv.ParseInt(rawSpeed, 10, strconv.IntSize)
 	if err != nil {
-		return -1, fmt.Errorf("interface: could not parse interface speed [%s] as integer (%s)",
-			rawSpeed, err.Error())
+		return fmt.Errorf("could not parse link speed [%s] as integer (%s)", rawSpeed, err.Error())
 	}
 
-	return int(speed), nil
+	r.linkSpeed = int(speed)
+	return nil
 }
 
-func getInterfaceDuplex(device string) (string, error) {
+func (r *interfaceResource) collectLinkDuplex(device string) error {
 	bytes, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/duplex", device))
 	if err != nil {
-		return "", fmt.Errorf(
-			"interface: could not determine interface duplex (%s)", err.Error())
+		return fmt.Errorf("could not determine link duplex (%s)", err.Error())
 	}
 
-	return strings.ToUpper(strings.TrimSpace(string(bytes))), nil
+	r.linkDuplex = strings.ToUpper(strings.TrimSpace(string(bytes)))
+	return nil
 }
 
-func getInterfaceTxErrors(device string) (int, error) {
+func (r *interfaceResource) collectTransmitErrors(device string) error {
 	bytes, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/statistics/tx_errors", device))
 	if err != nil {
-		return -1, fmt.Errorf(
-			"interface: could not determine interface tx errors file (%s)", err.Error())
+		return fmt.Errorf("could not determine transmit errors (%s)", err.Error())
 	}
 
 	rawErrorCount := strings.TrimSpace(string(bytes))
 	errorCount, err := strconv.ParseInt(rawErrorCount, 10, strconv.IntSize)
 	if err != nil {
-		return -1, fmt.Errorf("interface: could not parse interface tx errors [%s] as integer (%s)",
-			rawErrorCount, err.Error())
+		return fmt.Errorf("could not parse transmit errors [%s] as integer (%s)", rawErrorCount, err.Error())
 	}
 
-	return int(errorCount), nil
+	r.transmitErrors = int(errorCount)
+	return nil
 }
 
-func getInterfaceRxErrors(device string) (int, error) {
+func (r *interfaceResource) collectReceiveErrors(device string) error {
 	bytes, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/statistics/rx_errors", device))
 	if err != nil {
-		return -1, fmt.Errorf(
-			"interface: could not determine interface rx errors (%s)", err.Error())
+		return fmt.Errorf("could not determine receive errors (%s)", err.Error())
 	}
 
 	rawErrorCount := strings.TrimSpace(string(bytes))
 	errorCount, err := strconv.ParseInt(rawErrorCount, 10, strconv.IntSize)
 	if err != nil {
-		return -1, fmt.Errorf("interface: could not parse interface tx errors [%s] as integer (%s)",
-			rawErrorCount, err.Error())
+		return fmt.Errorf("could not parse receive errors [%s] as integer (%s)", rawErrorCount, err.Error())
 	}
 
-	return int(errorCount), nil
+	r.receiveErrors = int(errorCount)
+	return nil
 }

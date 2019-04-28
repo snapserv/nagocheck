@@ -18,29 +18,19 @@
 
 package modsystem
 
-import "github.com/snapserv/nagocheck/shared"
+import "github.com/snapserv/nagocheck/nagocheck"
 
 type systemModule struct {
-	shared.Module
+	nagocheck.Module
 }
 
-// GetModuleCommand is a helper method for instantiating 'systemModule' and calling the 'GetModuleCommand' method to
-// return a module command declaration.
-func GetModuleCommand() shared.ModuleCommand {
-	return newSystemModule().GetModuleCommand()
-}
-
-func newSystemModule() shared.Module {
+func NewSystemModule() nagocheck.Module {
 	return &systemModule{
-		Module: shared.NewBaseModule(),
+		Module: nagocheck.NewModule("system",
+			nagocheck.ModuleDescription("Operating System"),
+			nagocheck.ModulePlugin(newInterfacePlugin()),
+			nagocheck.ModulePlugin(newLoadPlugin()),
+			nagocheck.ModulePlugin(newMemoryPlugin()),
+		),
 	}
-}
-
-func (m *systemModule) GetModuleCommand() shared.ModuleCommand {
-	return shared.NewModuleCommand(
-		"system", "Operating System", m,
-		shared.NewPluginCommand("interface", "Network Interface", newInterfacePlugin()),
-		shared.NewPluginCommand("load", "Load Average", newLoadPlugin()),
-		shared.NewPluginCommand("memory", "Memory Usage", newMemoryPlugin()),
-	)
 }

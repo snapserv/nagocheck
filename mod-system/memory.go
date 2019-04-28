@@ -20,46 +20,51 @@ package modsystem
 
 import (
 	"fmt"
-	"github.com/snapserv/nagocheck/shared"
+	"github.com/snapserv/nagocheck/nagocheck"
 	"github.com/snapserv/nagopher"
 	"math"
 )
 
 type memoryPlugin struct {
-	shared.Plugin
+	nagocheck.Plugin
+
 	CountReclaimable bool
 }
 
-type memoryUsage struct {
-	active   float64
-	buffers  float64
-	cached   float64
-	free     float64
-	inactive float64
-	total    float64
+type memoryResource struct {
+	nagocheck.Resource
+
+	usagePercentage float64
+	usageStats      struct {
+		active   float64
+		buffers  float64
+		cached   float64
+		free     float64
+		inactive float64
+		total    float64
+	}
 }
 
-type memorySummary struct {
-	shared.PluginSummarizer
+type memorySummarizer struct {
+	nagocheck.Summarizer
 }
 
 func newMemoryPlugin() *memoryPlugin {
 	return &memoryPlugin{
-		Plugin: shared.NewPlugin(),
+		Plugin: nagocheck.NewPlugin("memory",
+			nagocheck.PluginDescription("Memory Usage"),
+		),
 	}
 }
 
-func (p *memoryPlugin) DefineFlags(kp shared.KingpinNode) {
-	p.Plugin.DefineDefaultFlags(kp)
-	p.Plugin.DefineDefaultThresholds(kp)
-
+func (p *memoryPlugin) DefineFlags(kp nagocheck.KingpinNode) {
 	kp.Flag("count-reclaimable", "Count reclaimable space (cached/buffers) as used.").
 		BoolVar(&p.CountReclaimable)
 }
 
-func (p *memoryPlugin) Execute() {
-	check := nagopher.NewCheck("memory", newMemorySummary(p))
-	check.AttachResources(shared.NewPluginResource(p))
+func (p *memoryPlugin) DefineCheck() nagopher.Check {
+	check := nagopher.NewCheck("memory", newMemorySummarizer(p))
+	check.AttachResources(newMemoryResource(p))
 	check.AttachContexts(
 		nagopher.NewScalarContext(
 			"usage",
@@ -74,56 +79,59 @@ func (p *memoryPlugin) Execute() {
 		nagopher.NewScalarContext("total", nil, nil),
 	)
 
-	p.ExecuteCheck(check)
+	return check
 }
 
-func (p *memoryPlugin) Probe(warnings nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
+func newMemoryResource(plugin *memoryPlugin) *memoryResource {
+	return &memoryResource{
+		Resource: nagocheck.NewResource(plugin),
+	}
+}
+
+func (r *memoryResource) Probe(warnings nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
 	valueRange, err := nagopher.NewBoundsFromNagiosRange("0:")
 	if err != nil {
 		return metrics, err
 	}
 
-	memoryUsage, err := getMemoryUsage()
-	if err != nil {
+	if err := r.Collect(); err != nil {
 		return metrics, err
 	}
 
-	freeMemory := memoryUsage.free
-	if !p.CountReclaimable {
-		freeMemory += memoryUsage.cached + memoryUsage.buffers
-	}
-	usagePercent := shared.Round(100-(freeMemory/memoryUsage.total*100), 2)
-
 	metrics = append(metrics,
-		nagopher.MustNewNumericMetric("usage", usagePercent, "%", nil, ""),
+		nagopher.MustNewNumericMetric("usage", r.usagePercentage, "%", nil, ""),
 
-		nagopher.MustNewNumericMetric("active", memoryUsage.active, "B", &valueRange, ""),
-		nagopher.MustNewNumericMetric("inactive", memoryUsage.inactive, "B", &valueRange, ""),
-		nagopher.MustNewNumericMetric("buffers", memoryUsage.buffers, "B", &valueRange, ""),
-		nagopher.MustNewNumericMetric("cached", memoryUsage.cached, "B", &valueRange, ""),
-		nagopher.MustNewNumericMetric("total", memoryUsage.total, "B", &valueRange, ""),
+		nagopher.MustNewNumericMetric("active", r.usageStats.active, "B", &valueRange, ""),
+		nagopher.MustNewNumericMetric("inactive", r.usageStats.inactive, "B", &valueRange, ""),
+		nagopher.MustNewNumericMetric("buffers", r.usageStats.buffers, "B", &valueRange, ""),
+		nagopher.MustNewNumericMetric("cached", r.usageStats.cached, "B", &valueRange, ""),
+		nagopher.MustNewNumericMetric("total", r.usageStats.total, "B", &valueRange, ""),
 	)
 
 	return metrics, nil
 }
 
-func newMemorySummary(plugin *memoryPlugin) *memorySummary {
-	return &memorySummary{
-		PluginSummarizer: shared.NewPluginSummarizer(plugin),
+func (r *memoryResource) Plugin() *memoryPlugin {
+	return r.Resource.Plugin().(*memoryPlugin)
+}
+
+func newMemorySummarizer(plugin *memoryPlugin) *memorySummarizer {
+	return &memorySummarizer{
+		Summarizer: nagocheck.NewSummarizer(plugin),
 	}
 }
 
-func (s *memorySummary) Ok(check nagopher.Check) string {
+func (s *memorySummarizer) Ok(check nagopher.Check) string {
 	resultCollection := check.Results()
 
 	return fmt.Sprintf(
 		"%.2f%% used - Total:%s Active:%s Inactive:%s Buffers:%s Cached:%s",
 
 		resultCollection.GetNumericMetricValue("usage").OrElse(math.NaN()),
-		shared.FormatBinarySize(resultCollection.GetNumericMetricValue("total").OrElse(math.NaN())),
-		shared.FormatBinarySize(resultCollection.GetNumericMetricValue("active").OrElse(math.NaN())),
-		shared.FormatBinarySize(resultCollection.GetNumericMetricValue("inactive").OrElse(math.NaN())),
-		shared.FormatBinarySize(resultCollection.GetNumericMetricValue("buffers").OrElse(math.NaN())),
-		shared.FormatBinarySize(resultCollection.GetNumericMetricValue("cached").OrElse(math.NaN())),
+		nagocheck.FormatBinarySize(resultCollection.GetNumericMetricValue("total").OrElse(math.NaN())),
+		nagocheck.FormatBinarySize(resultCollection.GetNumericMetricValue("active").OrElse(math.NaN())),
+		nagocheck.FormatBinarySize(resultCollection.GetNumericMetricValue("inactive").OrElse(math.NaN())),
+		nagocheck.FormatBinarySize(resultCollection.GetNumericMetricValue("buffers").OrElse(math.NaN())),
+		nagocheck.FormatBinarySize(resultCollection.GetNumericMetricValue("cached").OrElse(math.NaN())),
 	)
 }

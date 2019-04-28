@@ -20,9 +20,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/snapserv/nagocheck/mod-frrouting"
 	"github.com/snapserv/nagocheck/mod-system"
-	"github.com/snapserv/nagocheck/shared"
+	"github.com/snapserv/nagocheck/nagocheck"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"runtime"
 	"strings"
@@ -36,37 +35,26 @@ var (
 )
 
 func main() {
-	moduleCommands := shared.ModuleCommands{
-		modfrrouting.GetModuleCommand(),
-		modsystem.GetModuleCommand(),
-	}
-
-	for _, moduleCommand := range moduleCommands {
-		moduleDescription := "Check Module: " + moduleCommand.Description()
-		moduleClause := kingpin.Command(moduleCommand.Name(), moduleDescription)
-		moduleCommand.Module().DefineFlags(moduleClause)
-
-		for _, pluginCommand := range moduleCommand.PluginCommands() {
-			pluginDescription := fmt.Sprintf("%s: %s", moduleCommand.Description(), pluginCommand.Description())
-			pluginClause := moduleClause.Command(pluginCommand.Name(), pluginDescription)
-			pluginCommand.Plugin().DefineFlags(pluginClause)
-		}
-	}
+	modules := nagocheck.RegisterModules(
+		modsystem.NewSystemModule(),
+	)
 
 	kingpin.Version(fmt.Sprintf("nagocheck, version %s (commit: %s)\nbuild date: %s, runtime: %s",
 		BuildVersion, BuildCommit, BuildDate, runtime.Version()))
 	kingpin.CommandLine.HelpFlag.Short('h')
 	kingpin.CommandLine.VersionFlag.Short('V')
 
-	commandParts := strings.Split(kingpin.Parse(), " ")
-	moduleCommand, err := moduleCommands.GetByName(commandParts[0])
-	if err != nil {
-		panic(err)
-	}
-	pluginCommand, err := moduleCommand.PluginCommands().GetByName(commandParts[1])
-	if err != nil {
-		panic(err)
+	for _, module := range modules {
+		module.DefineFlags()
 	}
 
-	moduleCommand.Module().Execute(pluginCommand.Plugin())
+	commandParts := strings.Split(kingpin.Parse(), " ")
+	module, ok := modules[commandParts[0]]
+	if !ok {
+		panic(fmt.Sprintf("module not found with name [%s]", commandParts[0]))
+	}
+
+	if err := module.ExecutePlugin(commandParts[1]); err != nil {
+		panic(fmt.Sprintf("plugin execution of [%s] failed: %s", commandParts[1], err.Error()))
+	}
 }

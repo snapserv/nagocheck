@@ -20,81 +20,83 @@ package modsystem
 
 import (
 	"fmt"
-	"github.com/snapserv/nagocheck/shared"
+	"github.com/snapserv/nagocheck/nagocheck"
 	"github.com/snapserv/nagopher"
 	"math"
 )
 
 type interfacePlugin struct {
-	shared.Plugin
+	nagocheck.Plugin
 
-	Name           string
+	InterfaceName  string
 	SpeedRange     nagopher.OptionalBounds
 	ExpectedDuplex []string
 }
 
-type interfaceSummary struct {
-	shared.PluginSummarizer
+type interfaceResource struct {
+	nagocheck.Resource
+
+	linkState      string
+	linkSpeed      int
+	linkDuplex     string
+	transmitErrors int
+	receiveErrors  int
+
+	PreviousTransmitErrors float64 `json:"txErrors"`
+	PreviousReceiveErrors  float64 `json:"rxErrors"`
 }
 
-type interfaceStats struct {
-	State    string
-	Speed    int
-	Duplex   string
-	TxErrors int
-	RxErrors int
-}
-
-type interfaceStore struct {
-	PreviousTxErrors float64
-	PreviousRxErrors float64
+type interfaceSummarizer struct {
+	nagocheck.Summarizer
 }
 
 func newInterfacePlugin() *interfacePlugin {
 	return &interfacePlugin{
-		Plugin: shared.NewPlugin(),
+		Plugin: nagocheck.NewPlugin("interface",
+			nagocheck.PluginDescription("Network Interface"),
+			nagocheck.PluginDefaultThresholds(false),
+		),
 	}
 }
 
-func (p *interfacePlugin) DefineFlags(kp shared.KingpinNode) {
-	p.Plugin.DefineDefaultFlags(kp)
-
-	shared.NagopherBoundsVar(kp.Flag("speed",
-		"Interface speed threshold formatted as Nagios range specifier.").Short('s'), &p.SpeedRange)
+func (p *interfacePlugin) DefineFlags(kp nagocheck.KingpinNode) {
+	nagocheck.NagopherBoundsVar(kp.Flag("speed", "Interface speed threshold formatted as Nagios range specifier.").
+		Short('s'), &p.SpeedRange)
 
 	kp.Flag("duplex", "Return WARNING state when interface duplex does not match (e.g.: half, full).").
-		Short('d').
-		HintOptions("half", "full").
-		StringsVar(&p.ExpectedDuplex)
+		Short('d').HintOptions("half", "full").StringsVar(&p.ExpectedDuplex)
 
 	kp.Arg("name", "Name of network interface.").
-		Required().
-		StringVar(&p.Name)
+		Required().StringVar(&p.InterfaceName)
 }
 
-func (p *interfacePlugin) Execute() {
-	store := &interfaceStore{}
-	deltaRange, err := nagopher.NewBoundsFromNagiosRange("~:0")
-	if err != nil {
-		panic(err)
-	}
+func (p *interfacePlugin) DefineCheck() nagopher.Check {
+	deltaRange := nagopher.NewBounds(nagopher.LowerBound(0))
+	resource := newInterfaceResource(p)
 
-	check := nagopher.NewCheck("interface", newInterfaceSummary(p))
-	check.AttachResources(shared.NewPluginResource(p))
+	check := nagopher.NewCheck("interface", newInterfaceSummarizer(p))
+	check.AttachResources(resource)
 	check.AttachContexts(
 		nagopher.NewStringMatchContext("state", nagopher.StateCritical(), []string{"UP"}),
 		nagopher.NewStringMatchContext("duplex", nagopher.StateWarning(), p.ExpectedDuplex),
 		nagopher.NewScalarContext("speed", nagopher.OptionalBoundsPtr(p.SpeedRange), nil),
-		nagopher.NewDeltaContext("errors_tx", &store.PreviousTxErrors, &deltaRange, nil),
-		nagopher.NewDeltaContext("errors_rx", &store.PreviousRxErrors, &deltaRange, nil),
+		nagopher.NewDeltaContext("errors_tx", &resource.PreviousReceiveErrors, &deltaRange, nil),
+		nagopher.NewDeltaContext("errors_rx", &resource.PreviousTransmitErrors, &deltaRange, nil),
 	)
 
-	p.ExecutePersistentCheck(check, "interface-"+p.Name, &store)
+	return check
 }
 
-func (p *interfacePlugin) Probe(warnings nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
-	interfaceStats, err := getInterfaceStats(p.Name, warnings)
-	if err != nil {
+func newInterfaceResource(plugin *interfacePlugin) *interfaceResource {
+	return &interfaceResource{
+		Resource: nagocheck.NewResource(plugin,
+			nagocheck.ResourcePersistence(plugin.InterfaceName),
+		),
+	}
+}
+
+func (r *interfaceResource) Probe(warnings nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
+	if err := r.Collect(warnings); err != nil {
 		return metrics, err
 	}
 
@@ -107,23 +109,27 @@ func (p *interfacePlugin) Probe(warnings nagopher.WarningCollection) (metrics []
 	}
 
 	metrics = append(metrics,
-		nagopher.MustNewStringMetric("state", interfaceStats.State, ""),
-		nagopher.MustNewStringMetric("duplex", interfaceStats.Duplex, ""),
-		nagopher.MustNewNumericMetric("speed", intToFloat64(interfaceStats.Speed), "M", nil, ""),
-		nagopher.MustNewNumericMetric("errors_tx", intToFloat64(interfaceStats.TxErrors), "c", nil, ""),
-		nagopher.MustNewNumericMetric("errors_rx", intToFloat64(interfaceStats.RxErrors), "c", nil, ""),
+		nagopher.MustNewStringMetric("state", r.linkState, ""),
+		nagopher.MustNewStringMetric("duplex", r.linkDuplex, ""),
+		nagopher.MustNewNumericMetric("speed", intToFloat64(r.linkSpeed), "M", nil, ""),
+		nagopher.MustNewNumericMetric("errors_tx", intToFloat64(r.transmitErrors), "c", nil, ""),
+		nagopher.MustNewNumericMetric("errors_rx", intToFloat64(r.receiveErrors), "c", nil, ""),
 	)
 
 	return metrics, nil
 }
 
-func newInterfaceSummary(plugin *interfacePlugin) *interfaceSummary {
-	return &interfaceSummary{
-		PluginSummarizer: shared.NewPluginSummarizer(plugin),
+func (r *interfaceResource) Plugin() *interfacePlugin {
+	return r.Resource.Plugin().(*interfacePlugin)
+}
+
+func newInterfaceSummarizer(plugin *interfacePlugin) *interfaceSummarizer {
+	return &interfaceSummarizer{
+		Summarizer: nagocheck.NewSummarizer(plugin),
 	}
 }
 
-func (s *interfaceSummary) Ok(check nagopher.Check) string {
+func (s *interfaceSummarizer) Ok(check nagopher.Check) string {
 	var interfaceSpeed = "N/A"
 	resultCollection := check.Results()
 
