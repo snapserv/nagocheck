@@ -68,7 +68,7 @@ func (r *memoryResource) collectMemoryUsage() error {
 	r.usageStats.active = stats["Active"]
 	r.usageStats.buffers = stats["Buffers"]
 	r.usageStats.cached = stats["Cached"]
-	r.usageStats.free = stats["Free"]
+	r.usageStats.free = stats["MemFree"]
 	r.usageStats.inactive = stats["Inactive"]
 	r.usageStats.total = stats["MemTotal"]
 
