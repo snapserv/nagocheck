@@ -28,6 +28,7 @@ import (
 type Module interface {
 	Name() string
 	Description() string
+	Plugins() map[string]Plugin
 
 	DefineCommand() KingpinNode
 	DefineFlags(node KingpinNode)
@@ -48,6 +49,9 @@ func RegisterModules(modules ...Module) map[string]Module {
 	result := make(map[string]Module)
 	for _, module := range modules {
 		result[module.Name()] = module
+		for _, plugin := range module.Plugins() {
+			plugin.setModule(module)
+		}
 	}
 
 	return result
@@ -81,7 +85,6 @@ func ModulePlugin(plugin Plugin) ModuleOpt {
 }
 
 func (m *baseModule) RegisterPlugin(plugin Plugin) {
-	plugin.setModule(m)
 	m.plugins[plugin.Name()] = plugin
 }
 
@@ -119,10 +122,14 @@ func (m *baseModule) GetPluginByName(pluginName string) (Plugin, error) {
 	return plugin, nil
 }
 
-func (m *baseModule) Name() string {
+func (m baseModule) Name() string {
 	return m.name
 }
 
-func (m *baseModule) Description() string {
+func (m baseModule) Description() string {
 	return m.description
+}
+
+func (m baseModule) Plugins() map[string]Plugin {
+	return m.plugins
 }
