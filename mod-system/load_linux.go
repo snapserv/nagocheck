@@ -55,7 +55,7 @@ func (r *loadResource) collectLoadAverages() error {
 			return fmt.Errorf("could not parse [%s] as float (%s)", values[i], err.Error())
 		}
 
-		if r.Plugin().PerCPU {
+		if r.ThisPlugin().PerCPU {
 			value /= float64(r.cpuCores)
 		}
 		loadAverages = append(loadAverages, value)

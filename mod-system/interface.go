@@ -119,7 +119,7 @@ func (r *interfaceResource) Probe(warnings nagopher.WarningCollection) (metrics 
 	return metrics, nil
 }
 
-func (r *interfaceResource) Plugin() *interfacePlugin {
+func (r *interfaceResource) ThisPlugin() *interfacePlugin {
 	return r.Resource.Plugin().(*interfacePlugin)
 }
 

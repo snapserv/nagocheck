@@ -27,7 +27,7 @@ import (
 )
 
 func (r *interfaceResource) Collect(warnings nagopher.WarningCollection) error {
-	device := r.Plugin().InterfaceName
+	device := r.ThisPlugin().InterfaceName
 
 	if err := r.collectLinkState(device); err != nil {
 		return err

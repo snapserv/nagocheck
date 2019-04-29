@@ -96,7 +96,7 @@ func (r *loadResource) Probe(warnings nagopher.WarningCollection) (metrics []nag
 	return metrics, nil
 }
 
-func (r *loadResource) Plugin() *loadPlugin {
+func (r *loadResource) ThisPlugin() *loadPlugin {
 	return r.Resource.Plugin().(*loadPlugin)
 }
 
@@ -141,13 +141,13 @@ func (s *loadSummarizer) Problem(check nagopher.Check) string {
 }
 
 func (s *loadSummarizer) getDescriptionSuffix(check nagopher.Check) string {
-	if s.Plugin().PerCPU {
+	if s.ThisPlugin().PerCPU {
 		return " per CPU"
 	}
 
 	return ""
 }
 
-func (s *loadSummarizer) Plugin() *loadPlugin {
+func (s *loadSummarizer) ThisPlugin() *loadPlugin {
 	return s.Summarizer.Plugin().(*loadPlugin)
 }

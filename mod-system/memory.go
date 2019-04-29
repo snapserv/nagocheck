@@ -111,7 +111,7 @@ func (r *memoryResource) Probe(warnings nagopher.WarningCollection) (metrics []n
 	return metrics, nil
 }
 
-func (r *memoryResource) Plugin() *memoryPlugin {
+func (r *memoryResource) ThisPlugin() *memoryPlugin {
 	return r.Resource.Plugin().(*memoryPlugin)
 }
 

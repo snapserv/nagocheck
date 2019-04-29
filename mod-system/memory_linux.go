@@ -35,7 +35,7 @@ func (r *memoryResource) Collect() error {
 	}
 
 	freeMemory := r.usageStats.free
-	if !r.Plugin().CountReclaimable {
+	if !r.ThisPlugin().CountReclaimable {
 		freeMemory += r.usageStats.cached + r.usageStats.buffers
 	}
 	r.usagePercentage = nagocheck.Round(100-(freeMemory/r.usageStats.total*100), 2)
