@@ -29,9 +29,11 @@ type Module interface {
 	Name() string
 	Description() string
 
-	DefineFlags()
+	DefineCommand() KingpinNode
+	DefineFlags(node KingpinNode)
 	RegisterPlugin(plugin Plugin)
-	ExecutePlugin(pluginName string) error
+	ExecutePlugin(plugin Plugin) error
+	GetPluginByName(pluginName string) (Plugin, error)
 }
 
 type ModuleOpt func(*baseModule)
@@ -79,10 +81,11 @@ func ModulePlugin(plugin Plugin) ModuleOpt {
 }
 
 func (m *baseModule) RegisterPlugin(plugin Plugin) {
+	plugin.setModule(m)
 	m.plugins[plugin.Name()] = plugin
 }
 
-func (m *baseModule) DefineFlags() {
+func (m *baseModule) DefineCommand() KingpinNode {
 	moduleNode := kingpin.Command(m.name, m.description)
 
 	for _, plugin := range m.plugins {
@@ -92,19 +95,28 @@ func (m *baseModule) DefineFlags() {
 		plugin.defineDefaultFlags(pluginNode)
 		plugin.DefineFlags(pluginNode)
 	}
+
+	return moduleNode
 }
 
-func (m *baseModule) ExecutePlugin(pluginName string) error {
-	plugin, ok := m.plugins[pluginName]
-	if !ok {
-		return fmt.Errorf("plugin not found with name [%s]", pluginName)
-	}
+func (m *baseModule) DefineFlags(node KingpinNode) {
+}
 
+func (m *baseModule) ExecutePlugin(plugin Plugin) error {
 	check := plugin.DefineCheck()
 	runtime := nagopher.NewRuntime(plugin.VerboseOutput())
 	runtime.ExecuteAndExit(check)
 
 	return nil
+}
+
+func (m *baseModule) GetPluginByName(pluginName string) (Plugin, error) {
+	plugin, ok := m.plugins[pluginName]
+	if !ok {
+		return nil, fmt.Errorf("plugin not found with name [%s]", pluginName)
+	}
+
+	return plugin, nil
 }
 
 func (m *baseModule) Name() string {

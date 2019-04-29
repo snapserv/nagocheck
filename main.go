@@ -20,6 +20,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/snapserv/nagocheck/mod-frrouting"
 	"github.com/snapserv/nagocheck/mod-system"
 	"github.com/snapserv/nagocheck/nagocheck"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -36,6 +37,7 @@ var (
 
 func main() {
 	modules := nagocheck.RegisterModules(
+		modfrrouting.NewFrroutingModule(),
 		modsystem.NewSystemModule(),
 	)
 
@@ -45,7 +47,8 @@ func main() {
 	kingpin.CommandLine.VersionFlag.Short('V')
 
 	for _, module := range modules {
-		module.DefineFlags()
+		moduleNode := module.DefineCommand()
+		module.DefineFlags(moduleNode)
 	}
 
 	commandParts := strings.Split(kingpin.Parse(), " ")
@@ -54,7 +57,12 @@ func main() {
 		panic(fmt.Sprintf("module not found with name [%s]", commandParts[0]))
 	}
 
-	if err := module.ExecutePlugin(commandParts[1]); err != nil {
+	plugin, err := module.GetPluginByName(commandParts[1])
+	if err != nil {
+		panic(fmt.Sprintf("plugin not found with name [%s]", commandParts[1]))
+	}
+
+	if err := module.ExecutePlugin(plugin); err != nil {
 		panic(fmt.Sprintf("plugin execution of [%s] failed: %s", commandParts[1], err.Error()))
 	}
 }

@@ -7,6 +7,7 @@ import (
 type Plugin interface {
 	Name() string
 	Description() string
+	Module() Module
 	DefineFlags(node KingpinNode)
 	DefineCheck() nagopher.Check
 
@@ -14,6 +15,7 @@ type Plugin interface {
 	WarningThreshold() nagopher.OptionalBounds
 	CriticalThreshold() nagopher.OptionalBounds
 
+	setModule(module Module)
 	defineDefaultFlags(node KingpinNode)
 }
 
@@ -22,6 +24,7 @@ type PluginOpt func(*basePlugin)
 type basePlugin struct {
 	name                 string
 	description          string
+	module               Module
 	useDefaultFlags      bool
 	useDefaultThresholds bool
 
@@ -83,6 +86,14 @@ func (p *basePlugin) Name() string {
 
 func (p *basePlugin) Description() string {
 	return p.description
+}
+
+func (p *basePlugin) Module() Module {
+	return p.module
+}
+
+func (p *basePlugin) setModule(module Module) {
+	p.module = module
 }
 
 func (p *basePlugin) VerboseOutput() bool {
