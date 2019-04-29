@@ -25,6 +25,7 @@ import (
 	"github.com/snapserv/nagopher"
 	"io/ioutil"
 	"os"
+	"strings"
 	"syscall"
 )
 
@@ -38,13 +39,16 @@ type Resource interface {
 type ResourceOpt func(*baseResource)
 
 type baseResource struct {
-	nagopher.Resource
-	plugin Plugin
+	nagopher.Resource `json:"-"`
+	plugin            Plugin
 
-	persistenceKey string
+	persistenceKey   string
+	persistenceStore interface{}
 }
 
-const shmOpenFlags = os.O_CREATE | os.O_RDONLY | syscall.O_DSYNC | syscall.O_RSYNC
+const shmOpenFlags = os.O_CREATE | syscall.O_DSYNC | syscall.O_RSYNC
+const shmReadFlags = shmOpenFlags | os.O_RDONLY
+const shmWriteFlags = shmOpenFlags | os.O_WRONLY | os.O_TRUNC
 const shmDefaultMode = 0600
 
 // NewResource instantiates baseResource with the given functional options
@@ -62,27 +66,27 @@ func NewResource(plugin Plugin, options ...ResourceOpt) Resource {
 }
 
 // ResourcePersistence is a functional option for NewResource(), which enables resource persistence with the given key
-func ResourcePersistence(uniqueKey string) ResourceOpt {
+func ResourcePersistence(uniqueKey string, dataStore interface{}) ResourceOpt {
 	return func(r *baseResource) {
-		r.persistenceKey = r.Plugin().Name() + uniqueKey
+		r.persistenceKey = strings.ToLower(".nagocheck-" + r.Plugin().Name() + "-" + uniqueKey)
+		r.persistenceStore = dataStore
 	}
 }
 
-func (r baseResource) Probe(warnings nagopher.WarningCollection) ([]nagopher.Metric, error) {
+func (r baseResource) Setup(warnings nagopher.WarningCollection) error {
 	if err := r.loadPersistentData(); err != nil {
-		return []nagopher.Metric{}, fmt.Errorf("nagopher: unable to load persistent data: %s", err.Error())
+		return fmt.Errorf("unable to load persistent data: %s", err.Error())
 	}
 
-	metrics, err := r.Resource.Probe(warnings)
-	if err != nil {
-		return metrics, err
-	}
+	return nil
+}
 
+func (r baseResource) Teardown(warnings nagopher.WarningCollection) error {
 	if err := r.storePersistentData(); err != nil {
-		return []nagopher.Metric{}, fmt.Errorf("nagopher: unable to store persistent data: %s", err.Error())
+		return fmt.Errorf("unable to store persistent data: %s", err.Error())
 	}
 
-	return metrics, err
+	return nil
 }
 
 func (r *baseResource) loadPersistentData() (rerr error) {
@@ -92,7 +96,7 @@ func (r *baseResource) loadPersistentData() (rerr error) {
 	}
 
 	// Attempt to open or create file using SHM
-	file, err := shm.Open(r.persistenceKey, shmOpenFlags, shmDefaultMode)
+	file, err := shm.Open(r.persistenceKey, shmReadFlags, shmDefaultMode)
 	if err != nil {
 		return err
 	}
@@ -113,7 +117,7 @@ func (r *baseResource) loadPersistentData() (rerr error) {
 
 	// Attempt to unmarshal contents as JSON into target
 	if len(jsonData) > 0 {
-		if err := json.Unmarshal(jsonData, r); err != nil {
+		if err := json.Unmarshal(jsonData, r.persistenceStore); err != nil {
 			return err
 		}
 	}
@@ -128,13 +132,13 @@ func (r baseResource) storePersistentData() (rerr error) {
 	}
 
 	// Attempt to marshal source into JSON
-	jsonData, err := json.Marshal(r)
+	jsonData, err := json.Marshal(r.persistenceStore)
 	if err != nil {
 		return err
 	}
 
 	// Attempt to open or create file using SHM
-	file, err := shm.Open(r.persistenceKey, shmOpenFlags, shmDefaultMode)
+	file, err := shm.Open(r.persistenceKey, shmWriteFlags, shmDefaultMode)
 	if err != nil {
 		return err
 	}

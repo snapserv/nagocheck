@@ -34,7 +34,7 @@ type interfacePlugin struct {
 }
 
 type interfaceResource struct {
-	nagocheck.Resource
+	nagocheck.Resource `json:"-"`
 
 	linkState      string
 	linkSpeed      int
@@ -71,7 +71,7 @@ func (p *interfacePlugin) DefineFlags(kp nagocheck.KingpinNode) {
 }
 
 func (p *interfacePlugin) DefineCheck() nagopher.Check {
-	deltaRange := nagopher.NewBounds(nagopher.LowerBound(0))
+	deltaRange := nagopher.NewBounds(nagopher.LowerBound(math.Inf(-1)), nagopher.UpperBound(0))
 	resource := newInterfaceResource(p)
 
 	check := nagopher.NewCheck("interface", newInterfaceSummarizer(p))
@@ -88,11 +88,12 @@ func (p *interfacePlugin) DefineCheck() nagopher.Check {
 }
 
 func newInterfaceResource(plugin *interfacePlugin) *interfaceResource {
-	return &interfaceResource{
-		Resource: nagocheck.NewResource(plugin,
-			nagocheck.ResourcePersistence(plugin.InterfaceName),
-		),
-	}
+	resource := &interfaceResource{}
+	resource.Resource = nagocheck.NewResource(plugin,
+		nagocheck.ResourcePersistence(plugin.InterfaceName, &resource),
+	)
+
+	return resource
 }
 
 func (r *interfaceResource) Probe(warnings nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
