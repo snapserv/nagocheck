@@ -24,6 +24,7 @@ type systemModule struct {
 	nagocheck.Module
 }
 
+// NewSystemModule instantiates systemModule and all contained plugins
 func NewSystemModule() nagocheck.Module {
 	return &systemModule{
 		Module: nagocheck.NewModule("system",

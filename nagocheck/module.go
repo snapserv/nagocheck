@@ -24,7 +24,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-// Module collects several plugin commands underneath a module command and offers the possibility to define CLI flags
+// Module consists out of several plugins and offers methods for executing them
 type Module interface {
 	Name() string
 	Description() string
@@ -37,6 +37,7 @@ type Module interface {
 	GetPluginByName(pluginName string) (Plugin, error)
 }
 
+// ModuleOpt is a type alias for functional options used by NewModule()
 type ModuleOpt func(*baseModule)
 
 type baseModule struct {
@@ -45,6 +46,8 @@ type baseModule struct {
 	plugins     map[string]Plugin
 }
 
+// RegisterModules returns a map of modules with their name as the respective key. Additionally, all plugins contained
+// by these modules are being registered to their respective module using Plugin.setModule()
 func RegisterModules(modules ...Module) map[string]Module {
 	result := make(map[string]Module)
 	for _, module := range modules {
@@ -57,7 +60,7 @@ func RegisterModules(modules ...Module) map[string]Module {
 	return result
 }
 
-// NewModule instantiates a new baseModule, which should be inherited by user-defined module types
+// NewModule instantiates baseModule with the given functional options
 func NewModule(name string, options ...ModuleOpt) Module {
 	module := &baseModule{
 		name:        name,
@@ -72,12 +75,14 @@ func NewModule(name string, options ...ModuleOpt) Module {
 	return module
 }
 
+// ModuleDescription is a functional option for NewModule(), which sets the module description
 func ModuleDescription(description string) ModuleOpt {
 	return func(m *baseModule) {
 		m.description = description
 	}
 }
 
+// ModulePlugin is a functional option for NewModule(), which registers a plugin using Module.RegisterPlugin()
 func ModulePlugin(plugin Plugin) ModuleOpt {
 	return func(m *baseModule) {
 		m.RegisterPlugin(plugin)

@@ -35,7 +35,8 @@ type frroutingModule struct {
 	TelnetPassword string
 }
 
-func NewFrroutingModule() *frroutingModule {
+// NewFrroutingModule instantiates frroutingModule and all contained plugins
+func NewFrroutingModule() nagocheck.Module {
 	return &frroutingModule{
 		Module: nagocheck.NewModule("frrouting",
 			nagocheck.ModuleDescription("FRRouting"),

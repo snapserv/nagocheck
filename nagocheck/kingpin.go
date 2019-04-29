@@ -5,6 +5,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
+// KingpinNode is a unified interface for kingpin, which allows using Arg() and Flag() at root- and command-level
 type KingpinNode interface {
 	Arg(name, help string) *kingpin.ArgClause
 	Flag(name, help string) *kingpin.FlagClause

@@ -4,6 +4,7 @@ import (
 	"github.com/snapserv/nagopher"
 )
 
+// Plugin represents a single check including its CLI arguments
 type Plugin interface {
 	Name() string
 	Description() string
@@ -19,6 +20,7 @@ type Plugin interface {
 	defineDefaultFlags(node KingpinNode)
 }
 
+// PluginOpt is a type alias for functional options used by NewPlugin()
 type PluginOpt func(*basePlugin)
 
 type basePlugin struct {
@@ -33,6 +35,7 @@ type basePlugin struct {
 	criticalThreshold nagopher.OptionalBounds
 }
 
+// NewPlugin instantiates basePlugin with the given functional options
 func NewPlugin(name string, options ...PluginOpt) Plugin {
 	plugin := &basePlugin{
 		name:                 name,
@@ -48,18 +51,21 @@ func NewPlugin(name string, options ...PluginOpt) Plugin {
 	return plugin
 }
 
+// PluginDescription is a functional option for NewPlugin(), which sets the module description
 func PluginDescription(description string) PluginOpt {
 	return func(p *basePlugin) {
 		p.description = description
 	}
 }
 
+// PluginDefaultFlags is a functional option for NewPlugin(), which toggles the definition of default flags
 func PluginDefaultFlags(enabled bool) PluginOpt {
 	return func(p *basePlugin) {
 		p.useDefaultFlags = enabled
 	}
 }
 
+// PluginDefaultThresholds is a functional option for NewPlugin(), which toggles the definition of default thresholds
 func PluginDefaultThresholds(enabled bool) PluginOpt {
 	return func(p *basePlugin) {
 		p.useDefaultThresholds = enabled

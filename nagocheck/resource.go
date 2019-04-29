@@ -10,11 +10,13 @@ import (
 	"syscall"
 )
 
+// Resource provides a base type for nagocheck resources, which embeds nagopher.Resource
 type Resource interface {
 	nagopher.Resource
 	Plugin() Plugin
 }
 
+// ResourceOpt is a type alias for functional options used by NewSummarizer()
 type ResourceOpt func(*baseResource)
 
 type baseResource struct {
@@ -27,6 +29,7 @@ type baseResource struct {
 const shmOpenFlags = os.O_CREATE | os.O_RDONLY | syscall.O_DSYNC | syscall.O_RSYNC
 const shmDefaultMode = 0600
 
+// NewResource instantiates baseResource with the given functional options
 func NewResource(plugin Plugin, options ...ResourceOpt) Resource {
 	resource := &baseResource{
 		Resource: nagopher.NewResource(),
@@ -40,6 +43,7 @@ func NewResource(plugin Plugin, options ...ResourceOpt) Resource {
 	return resource
 }
 
+// ResourcePersistence is a functional option for NewResource(), which enables resource persistence with the given key
 func ResourcePersistence(uniqueKey string) ResourceOpt {
 	return func(r *baseResource) {
 		r.persistenceKey = r.Plugin().Name() + uniqueKey
