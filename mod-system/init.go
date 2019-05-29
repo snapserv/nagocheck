@@ -34,6 +34,7 @@ func NewSystemModule() nagocheck.Module {
 			nagocheck.ModulePlugin(newMemoryPlugin()),
 			nagocheck.ModulePlugin(newSwapPlugin()),
 			nagocheck.ModulePlugin(newUptimePlugin()),
+			nagocheck.ModulePlugin(newSessionPlugin()),
 		),
 	}
 }
