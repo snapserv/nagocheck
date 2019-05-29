@@ -23,13 +23,13 @@ archives:
   - format: tar.gz
     wrap_in_directory: true
 
-nfpm:
-  vendor: Pascal Mathis
-  maintainer: SnapServ Packaging Team <packaging@snapserv.net>
-  homepage: https://github.com/snapserv/nagocheck
-  description: Reliable and lightweight Nagios plugins written in Go
-  license: GPL-3.0
-  bindir: /usr/bin
-  formats:
-    - deb
-    - rpm
+nfpms:
+  - vendor: Pascal Mathis
+    maintainer: SnapServ Packaging Team <packaging@snapserv.net>
+    homepage: https://github.com/snapserv/nagocheck
+    description: Reliable and lightweight Nagios plugins written in Go
+    license: GPL-3.0
+    bindir: /usr/bin
+    formats:
+      - deb
+      - rpm
