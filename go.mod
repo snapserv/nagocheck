@@ -18,7 +18,7 @@ require (
 	github.com/pborman/uuid v1.2.0 // indirect
 	github.com/shirou/gopsutil v2.18.12+incompatible
 	github.com/shirou/w32 v0.0.0-20160930032740-bb4de0191aa4 // indirect
-	github.com/snapserv/nagopher v0.1.5
+	github.com/snapserv/nagopher v0.1.6
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/ziutek/telnet v0.0.0-20180329124119-c3b780dc415b
 	golang.org/x/crypto v0.0.0-20190513172903-22d7a77e9e5f // indirect

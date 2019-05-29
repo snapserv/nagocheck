@@ -64,6 +64,8 @@ github.com/snapserv/nagopher v0.1.4 h1:8PhRFsbY04Pb41oq16mGPhtTRqXQ9n/zSNVIAxmbj
 github.com/snapserv/nagopher v0.1.4/go.mod h1:ShJ/oGD+Ll6eWHLu673E64FTSpH6Z1rIZ5lzqIsMmdw=
 github.com/snapserv/nagopher v0.1.5 h1:PxmYs5ibck2JsQO3bzsjHhwDmWVRhnUnya8Gtlv6Wf4=
 github.com/snapserv/nagopher v0.1.5/go.mod h1:ShJ/oGD+Ll6eWHLu673E64FTSpH6Z1rIZ5lzqIsMmdw=
+github.com/snapserv/nagopher v0.1.6 h1:+buDksV5pYYo9Z+L51wC4jnKTDzMd7q6sX5wvzjew4k=
+github.com/snapserv/nagopher v0.1.6/go.mod h1:ShJ/oGD+Ll6eWHLu673E64FTSpH6Z1rIZ5lzqIsMmdw=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/objx v0.2.0/go.mod h1:qt09Ya8vawLte6SNmTgCsAVtYtaKzEcn8ATUoHMkEqE=
 github.com/stretchr/testify v1.3.0 h1:TivCn/peBQ7UY8ooIcPgZFpTNSz0Q2U6UrFlUfqbe0Q=
