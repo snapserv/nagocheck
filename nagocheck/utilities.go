@@ -122,6 +122,10 @@ func FormatBinarySize(size float64) string {
 				return strconv.FormatFloat(value, 'f', 2, strconv.IntSize) + unit.Suffix
 			}
 		}
+
+		if size == 0 {
+			return "0B"
+		}
 	}
 
 	return "N/A"
