@@ -20,9 +20,11 @@ package modsystem
 
 import (
 	"fmt"
+	"github.com/shirou/gopsutil/mem"
 	"github.com/snapserv/nagocheck/nagocheck"
 	"github.com/snapserv/nagopher"
 	"math"
+	"strings"
 )
 
 type memoryPlugin struct {
@@ -34,14 +36,17 @@ type memoryPlugin struct {
 type memoryResource struct {
 	nagocheck.Resource
 
-	usagePercentage float64
-	usageStats      struct {
-		active   float64
-		buffers  float64
-		cached   float64
-		free     float64
-		inactive float64
-		total    float64
+	usagePercent float64
+	usageStats   struct {
+		totalBytes float64
+		usedBytes  float64
+		freeBytes  float64
+
+		activeBytes   float64
+		inactiveBytes float64
+		wiredBytes    float64
+		buffersBytes  float64
+		cachedBytes   float64
 	}
 }
 
@@ -58,7 +63,7 @@ func newMemoryPlugin() *memoryPlugin {
 }
 
 func (p *memoryPlugin) DefineFlags(kp nagocheck.KingpinNode) {
-	kp.Flag("count-reclaimable", "Count reclaimable space (cached/buffers) as used.").
+	kp.Flag("count-reclaimable", "Count reclaimable space (cached/buffers) as usedBytes.").
 		BoolVar(&p.CountReclaimable)
 }
 
@@ -72,11 +77,15 @@ func (p *memoryPlugin) DefineCheck() nagopher.Check {
 			nagopher.OptionalBoundsPtr(p.CriticalThreshold()),
 		),
 
+		nagopher.NewScalarContext("total", nil, nil),
+		nagopher.NewScalarContext("used", nil, nil),
+		nagopher.NewScalarContext("free", nil, nil),
+
 		nagopher.NewScalarContext("active", nil, nil),
 		nagopher.NewScalarContext("inactive", nil, nil),
+		nagopher.NewScalarContext("wired", nil, nil),
 		nagopher.NewScalarContext("buffers", nil, nil),
 		nagopher.NewScalarContext("cached", nil, nil),
-		nagopher.NewScalarContext("total", nil, nil),
 	)
 
 	return check
@@ -89,26 +98,58 @@ func newMemoryResource(plugin *memoryPlugin) *memoryResource {
 }
 
 func (r *memoryResource) Probe(warnings nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
-	valueRange, err := nagopher.NewBoundsFromNagiosRange("0:")
-	if err != nil {
-		return metrics, err
-	}
+	valueRange := nagopher.NewBounds(nagopher.BoundsOpt(nagopher.LowerBound(0)))
 
 	if err := r.Collect(); err != nil {
 		return metrics, err
 	}
 
 	metrics = append(metrics,
-		nagopher.MustNewNumericMetric("usage", r.usagePercentage, "%", nil, ""),
-
-		nagopher.MustNewNumericMetric("active", r.usageStats.active, "B", &valueRange, ""),
-		nagopher.MustNewNumericMetric("inactive", r.usageStats.inactive, "B", &valueRange, ""),
-		nagopher.MustNewNumericMetric("buffers", r.usageStats.buffers, "B", &valueRange, ""),
-		nagopher.MustNewNumericMetric("cached", r.usageStats.cached, "B", &valueRange, ""),
-		nagopher.MustNewNumericMetric("total", r.usageStats.total, "B", &valueRange, ""),
+		nagopher.MustNewNumericMetric("usage", r.usagePercent, "%", nil, ""),
+		nagopher.MustNewNumericMetric("total", r.usageStats.totalBytes, "B", &valueRange, ""),
+		nagopher.MustNewNumericMetric("used", r.usageStats.usedBytes, "B", &valueRange, ""),
+		nagopher.MustNewNumericMetric("free", r.usageStats.freeBytes, "B", &valueRange, ""),
 	)
 
+	optionalMetric := func(name string, value float64, valueUnit string, valueRange *nagopher.Bounds, context string) {
+		if !math.IsNaN(value) && value != 0 {
+			metrics = append(metrics, nagopher.MustNewNumericMetric(name, value, valueUnit, valueRange, context))
+		}
+	}
+
+	optionalMetric("active", r.usageStats.activeBytes, "B", &valueRange, "")
+	optionalMetric("inactive", r.usageStats.inactiveBytes, "B", &valueRange, "")
+	optionalMetric("wired", r.usageStats.wiredBytes, "B", &valueRange, "")
+	optionalMetric("buffers", r.usageStats.buffersBytes, "B", &valueRange, "")
+	optionalMetric("cached", r.usageStats.cachedBytes, "B", &valueRange, "")
+
 	return metrics, nil
+}
+
+func (r *memoryResource) Collect() error {
+	vmStats, err := mem.VirtualMemory()
+	if err != nil {
+		return err
+	}
+
+	freeBytes := vmStats.Free
+	if !r.ThisPlugin().CountReclaimable {
+		freeBytes += vmStats.Cached + vmStats.Buffers
+	}
+
+	r.usageStats.totalBytes = float64(vmStats.Total)
+	r.usageStats.usedBytes = float64(vmStats.Total - freeBytes)
+	r.usageStats.freeBytes = float64(freeBytes)
+
+	r.usageStats.activeBytes = float64(vmStats.Active)
+	r.usageStats.inactiveBytes = float64(vmStats.Inactive)
+	r.usageStats.wiredBytes = float64(vmStats.Wired)
+	r.usageStats.buffersBytes = float64(vmStats.Buffers)
+	r.usageStats.cachedBytes = float64(vmStats.Cached)
+
+	r.usagePercent = nagocheck.Round(100-(r.usageStats.freeBytes/r.usageStats.totalBytes*100), 2)
+
+	return nil
 }
 
 func (r *memoryResource) ThisPlugin() *memoryPlugin {
@@ -123,15 +164,24 @@ func newMemorySummarizer(plugin *memoryPlugin) *memorySummarizer {
 
 func (s *memorySummarizer) Ok(check nagopher.Check) string {
 	resultCollection := check.Results()
-
-	return fmt.Sprintf(
-		"%.2f%% used - Total:%s Active:%s Inactive:%s Buffers:%s Cached:%s",
-
+	result := fmt.Sprintf(
+		"%.2f%% used - Total:%s Used:%s",
 		resultCollection.GetNumericMetricValue("usage").OrElse(math.NaN()),
 		nagocheck.FormatBinarySize(resultCollection.GetNumericMetricValue("total").OrElse(math.NaN())),
-		nagocheck.FormatBinarySize(resultCollection.GetNumericMetricValue("active").OrElse(math.NaN())),
-		nagocheck.FormatBinarySize(resultCollection.GetNumericMetricValue("inactive").OrElse(math.NaN())),
-		nagocheck.FormatBinarySize(resultCollection.GetNumericMetricValue("buffers").OrElse(math.NaN())),
-		nagocheck.FormatBinarySize(resultCollection.GetNumericMetricValue("cached").OrElse(math.NaN())),
+		nagocheck.FormatBinarySize(resultCollection.GetNumericMetricValue("used").OrElse(math.NaN())),
 	)
+
+	optionalResult := func(metricName string) {
+		numericMetric, err := resultCollection.GetNumericMetricValue(metricName).Get()
+		if err != nil {
+			return
+		}
+
+		result += fmt.Sprintf(" %s:%s", strings.Title(metricName), nagocheck.FormatBinarySize(numericMetric))
+	}
+
+	optionalResult("buffers")
+	optionalResult("cached")
+
+	return result
 }

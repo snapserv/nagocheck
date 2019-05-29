@@ -20,9 +20,11 @@ package modsystem
 
 import (
 	"fmt"
+	"github.com/shirou/gopsutil/load"
 	"github.com/snapserv/nagocheck/nagocheck"
 	"github.com/snapserv/nagopher"
 	"math"
+	"runtime"
 )
 
 type loadPlugin struct {
@@ -78,10 +80,7 @@ func newLoadResource(plugin *loadPlugin) *loadResource {
 }
 
 func (r *loadResource) Probe(warnings nagopher.WarningCollection) (metrics []nagopher.Metric, _ error) {
-	valueRange, err := nagopher.NewBoundsFromNagiosRange("0:")
-	if err != nil {
-		return metrics, err
-	}
+	valueRange := nagopher.NewBounds(nagopher.BoundsOpt(nagopher.LowerBound(0)))
 
 	if err := r.Collect(); err != nil {
 		return metrics, err
@@ -94,6 +93,26 @@ func (r *loadResource) Probe(warnings nagopher.WarningCollection) (metrics []nag
 	)
 
 	return metrics, nil
+}
+
+func (r *loadResource) Collect() error {
+	loadStats, err := load.Avg()
+	if err != nil {
+		return err
+	}
+
+	r.cpuCores = uint(runtime.NumCPU())
+	r.loadAverage1 = loadStats.Load1
+	r.loadAverage5 = loadStats.Load5
+	r.loadAverage15 = loadStats.Load15
+
+	if r.ThisPlugin().PerCPU {
+		r.loadAverage1 /= float64(r.cpuCores)
+		r.loadAverage5 /= float64(r.cpuCores)
+		r.loadAverage15 /= float64(r.cpuCores)
+	}
+
+	return nil
 }
 
 func (r *loadResource) ThisPlugin() *loadPlugin {
