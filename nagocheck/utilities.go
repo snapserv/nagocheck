@@ -89,7 +89,7 @@ func DurationString(duration time.Duration) string {
 		return fmt.Sprintf("%dd%s", days, (duration - daysDuration).String())
 	}
 
-	return duration.String()
+	return duration.Truncate(time.Second).String()
 }
 
 // compatTimeTruncate is a compatibility function for time.Truncate(), which is not supported in Go 1.8
@@ -143,4 +143,22 @@ func NewInvalidMetricTypeResult(context Context, metric nagopher.Metric, resourc
 			"%s can not process metric of type [%s]", reflect.TypeOf(context), reflect.TypeOf(metric),
 		)),
 	)
+}
+
+type hiddenScalarContext struct {
+	Context
+}
+
+// NewHiddenScalarContext is a subclass of the standard ScalarContext provided by nagopher. It behaves exactly the same
+// in terms of representation and evaluation, however it is being suppressed in performance data.
+func NewHiddenScalarContext(plugin Plugin, name string, warningThreshold *nagopher.Bounds, criticalThreshold *nagopher.Bounds) Context {
+	return &hiddenScalarContext{
+		Context: NewContext(plugin, nagopher.NewScalarContext(
+			name, warningThreshold, criticalThreshold,
+		)),
+	}
+}
+
+func (c *hiddenScalarContext) Performance(metric nagopher.Metric, resource nagopher.Resource) (nagopher.OptionalPerfData, error) {
+	return nagopher.OptionalPerfData{}, nil
 }
