@@ -47,6 +47,7 @@ type basePlugin struct {
 	module               Module
 	useDefaultFlags      bool
 	useDefaultThresholds bool
+	forceVerboseOutput   bool
 
 	verboseOutput     bool
 	warningThreshold  nagopher.OptionalBounds
@@ -60,6 +61,7 @@ func NewPlugin(name string, options ...PluginOpt) Plugin {
 		description:          name,
 		useDefaultFlags:      true,
 		useDefaultThresholds: true,
+		forceVerboseOutput:   false,
 	}
 
 	for _, option := range options {
@@ -73,6 +75,13 @@ func NewPlugin(name string, options ...PluginOpt) Plugin {
 func PluginDescription(description string) PluginOpt {
 	return func(p *basePlugin) {
 		p.description = description
+	}
+}
+
+// PluginForceVerbose is a functional option for NewPlugin(), which toggles forcing verbose check output
+func PluginForceVerbose(enabled bool) PluginOpt {
+	return func(p *basePlugin) {
+		p.forceVerboseOutput = enabled
 	}
 }
 
@@ -92,8 +101,10 @@ func PluginDefaultThresholds(enabled bool) PluginOpt {
 
 func (p *basePlugin) defineDefaultFlags(node KingpinNode) {
 	if p.useDefaultFlags {
-		node.Flag("verbose", "Enable verbose plugin output.").
-			Short('v').BoolVar(&p.verboseOutput)
+		if !p.verboseOutput {
+			node.Flag("verbose", "Enable verbose plugin output.").
+				Short('v').BoolVar(&p.verboseOutput)
+		}
 	}
 
 	if p.useDefaultThresholds {
@@ -121,6 +132,10 @@ func (p *basePlugin) setModule(module Module) {
 }
 
 func (p *basePlugin) VerboseOutput() bool {
+	if p.forceVerboseOutput {
+		return true
+	}
+
 	return p.verboseOutput
 }
 
