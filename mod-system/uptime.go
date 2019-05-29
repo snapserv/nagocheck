@@ -161,6 +161,20 @@ func (c *uptimeContext) Evaluate(metric nagopher.Metric, resource nagopher.Resou
 	)
 }
 
+func (c *uptimeContext) Performance(metric nagopher.Metric, resource nagopher.Resource) (nagopher.OptionalPerfData, error) {
+	perfData, err := nagopher.NewPerfData(
+		metric,
+		nagopher.OptionalBoundsPtr(c.warningThreshold),
+		nagopher.OptionalBoundsPtr(c.criticalThreshold),
+	)
+
+	if err != nil {
+		return nagopher.OptionalPerfData{}, err
+	}
+
+	return nagopher.NewOptionalPerfData(perfData), nil
+}
+
 func (c *uptimeContext) violationHint(threshold nagopher.Bounds) string {
 	upperBounds := threshold.Upper().OrElse(math.NaN())
 	lowerBounds := threshold.Lower().OrElse(math.NaN())
