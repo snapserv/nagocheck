@@ -20,7 +20,9 @@ package nagocheck
 
 import (
 	"fmt"
+	"github.com/snapserv/nagopher"
 	"math"
+	"reflect"
 	"regexp"
 	"strconv"
 	"time"
@@ -123,4 +125,18 @@ func FormatBinarySize(size float64) string {
 	}
 
 	return "N/A"
+}
+
+// NewInvalidMetricTypeResult returns a new Nagopher result in case a custom context tries to convert the generic Metric
+// interface pointer into a specific type and is unable to do so. An example from Nagopher itself (which does not use
+// this helper method though, obviously) would be a ScalarContext which strictly requires a NumericMetric to properly
+// evaluate the context.
+func NewInvalidMetricTypeResult(context Context, metric nagopher.Metric, resource nagopher.Resource) nagopher.Result {
+	return nagopher.NewResult(
+		nagopher.ResultState(nagopher.StateUnknown()),
+		nagopher.ResultMetric(metric), nagopher.ResultContext(context), nagopher.ResultResource(resource),
+		nagopher.ResultHint(fmt.Sprintf(
+			"%s can not process metric of type [%s]", reflect.TypeOf(context), reflect.TypeOf(metric),
+		)),
+	)
 }
