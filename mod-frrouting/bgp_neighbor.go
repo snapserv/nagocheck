@@ -19,14 +19,11 @@
 package modfrrouting
 
 import (
-	"encoding/json"
 	"fmt"
-	"github.com/snapserv/nagocheck/mod-frrouting/goffr"
 	"github.com/snapserv/nagocheck/nagocheck"
 	"github.com/snapserv/nagopher"
 	"math"
 	"net"
-	"strings"
 	"time"
 )
 
@@ -43,41 +40,11 @@ type bgpNeighborPlugin struct {
 type bgpNeighborResource struct {
 	nagocheck.Resource
 
-	neighborStats bgpNeighborStats
+	neighbor *BgpNeighbor
 }
 
 type bgpNeighborSummarizer struct {
 	nagocheck.Summarizer
-}
-
-type bgpNeighborStats struct {
-	LocalHost          string                        `json:"hostLocal"`
-	LocalPort          int                           `json:"portLocal"`
-	LocalASN           int                           `json:"localAs"`
-	RemoteHost         string                        `json:"hostForeign"`
-	RemotePort         int                           `json:"portForeign"`
-	RemoteASN          int                           `json:"remoteAs"`
-	RemoteRouterID     string                        `json:"remoteRouterId"`
-	UpdateSource       string                        `json:"updateSource"`
-	Version            int                           `json:"bgpVersion"`
-	OperationalState   string                        `json:"bgpState"`
-	Description        string                        `json:"nbrDesc"`
-	AddressFamilies    map[string]bgpNeighborAFStats `json:"addressFamilyInfo"`
-	UpTimer            int64                         `json:"bgpTimerUpMsec"`
-	ResetTimer         int64                         `json:"lastResetTimerMsecs"`
-	ResetReason        string                        `json:"lastResetDueTo"`
-	NotificationReason string                        `json:"lastNotificationReason"`
-
-	lastStateChange         time.Duration
-	prefixUsageTotal        int
-	prefixLimitTotal        int
-	prefixLimitUsagePercent int
-}
-
-type bgpNeighborAFStats struct {
-	PeerGroup   string `json:"peerGroupMember"`
-	PrefixCount int    `json:"acceptedPrefixCounter"`
-	PrefixLimit int    `json:"prefixAllowedMax"`
 }
 
 type uptimeContext struct {
@@ -156,53 +123,53 @@ func (r *bgpNeighborResource) Probe(warnings nagopher.WarningCollection) (metric
 		return metrics, err
 	}
 
-	lastStateChangeSeconds := nagocheck.Round(r.neighborStats.lastStateChange.Seconds(), 0)
+	lastStateChangeSeconds := nagocheck.Round(r.neighbor.LastStateChange.Seconds(), 0)
 	metrics = append(metrics,
-		nagopher.MustNewStringMetric("state", r.neighborStats.OperationalState, ""),
+		nagopher.MustNewStringMetric("state", r.neighbor.OperationalState, ""),
 		nagopher.MustNewNumericMetric("last_state_change", lastStateChangeSeconds, "s", nil, ""),
-		nagopher.MustNewNumericMetric("prefix_count", float64(r.neighborStats.prefixUsageTotal), "", nil, ""),
+		nagopher.MustNewNumericMetric("prefix_count", float64(r.neighbor.PrefixUsageTotal), "", nil, ""),
 
 		nagopher.MustNewStringMetric("info_description", fmt.Sprintf(
 			"description: %s",
-			r.neighborStats.Description), ""),
+			r.neighbor.Description), ""),
 		nagopher.MustNewStringMetric("info_session_1", fmt.Sprintf(
 			"session: AS%d[%s:%d] <-> AS%d[%s:%d]",
-			r.neighborStats.RemoteASN, r.neighborStats.RemoteHost, r.neighborStats.RemotePort,
-			r.neighborStats.LocalASN, r.neighborStats.LocalHost, r.neighborStats.LocalPort), ""),
+			r.neighbor.RemoteAS, r.neighbor.RemoteHost, r.neighbor.RemotePort,
+			r.neighbor.LocalAS, r.neighbor.LocalHost, r.neighbor.LocalPort), ""),
 		nagopher.MustNewStringMetric("info_session_2", fmt.Sprintf(
 			"session: Version=%d RemoteRID=%s",
-			r.neighborStats.Version, r.neighborStats.RemoteRouterID), ""),
+			r.neighbor.Version, r.neighbor.RemoteRouterID), ""),
 	)
 
 	// Only add prefix limit usage statistics if a prefix limit was set
-	if r.neighborStats.prefixLimitTotal > 0 {
-		metrics = append(metrics, nagopher.MustNewNumericMetric("prefix_limit_usage",
-			float64(r.neighborStats.prefixLimitUsagePercent), "%", nil, ""))
+	if r.neighbor.PrefixLimitTotal > 0 {
+		percentage := float64(r.neighbor.PrefixUsageTotal / r.neighbor.PrefixLimitTotal * 100)
+		metrics = append(metrics, nagopher.MustNewNumericMetric("prefix_limit_usage", percentage, "%", nil, ""))
 	}
 
 	// Only add uptime metric (redundant with last state change metric) if state=='ESTABLISHED'
-	if r.neighborStats.OperationalState == "ESTABLISHED" {
+	if r.neighbor.OperationalState == "ESTABLISHED" {
 		metrics = append(metrics, nagopher.MustNewNumericMetric("uptime", lastStateChangeSeconds, "s", nil, ""))
 	}
 
 	// Display additional information about prefix usage
-	usageString := fmt.Sprintf("prefixes: %d accepted", r.neighborStats.prefixUsageTotal)
-	if r.neighborStats.prefixLimitTotal > 0 {
-		usageString += fmt.Sprintf(", %d maximum", r.neighborStats.prefixLimitTotal)
+	usageString := fmt.Sprintf("prefixes: %d accepted", r.neighbor.PrefixUsageTotal)
+	if r.neighbor.PrefixLimitTotal > 0 {
+		usageString += fmt.Sprintf(", %d maximum", r.neighbor.PrefixLimitTotal)
 	} else {
 		usageString += ", no maximum set"
 	}
 	metrics = append(metrics, nagopher.MustNewStringMetric("info_prefix_usage", usageString, ""))
 
 	// Display last reset/notification reason if neighbor has state!='ESTABLISHED' and not reason is not empty
-	if r.neighborStats.OperationalState != "ESTABLISHED" {
-		if r.neighborStats.ResetReason != "" {
+	if r.neighbor.OperationalState != "ESTABLISHED" {
+		if r.neighbor.ResetReason != "" {
 			metrics = append(metrics, nagopher.MustNewStringMetric("info_reset_reason",
-				fmt.Sprintf("last reset reason: %s", r.neighborStats.ResetReason), ""))
+				fmt.Sprintf("last reset reason: %s", r.neighbor.ResetReason), ""))
 		}
-		if r.neighborStats.NotificationReason != "" {
+		if r.neighbor.NotificationReason != "" {
 			metrics = append(metrics, nagopher.MustNewStringMetric("info_notification_reason",
-				fmt.Sprintf("last notification reason: %s", r.neighborStats.NotificationReason), ""))
+				fmt.Sprintf("last notification reason: %s", r.neighbor.NotificationReason), ""))
 		}
 	}
 
@@ -210,70 +177,14 @@ func (r *bgpNeighborResource) Probe(warnings nagopher.WarningCollection) (metric
 }
 
 func (r *bgpNeighborResource) Collect() error {
-	var neighbors map[string]bgpNeighborStats
+	var err error
 
-	// Establish new goffr instance to the FRRouting daemon
-	bgpd, err := r.ThisPlugin().ThisModule().GoffrSession.GetInstance(goffr.InstanceBGP)
-	if err != nil {
-		return fmt.Errorf("could not connect to bgpd instance (%s)", err.Error())
-	}
+	r.neighbor, err = r.Session().GetBgpNeighbor(r.ThisPlugin().NeighborIP.String())
+	return err
+}
 
-	// Convert neighbor IP to lower-cased string representation
-	neighborAddress := strings.ToLower(r.ThisPlugin().NeighborIP.String())
-
-	// Fetch JSON data for the desired neighbor
-	rawData, err := bgpd.ExecuteJSON(fmt.Sprintf("show bgp neighbor %s json", neighborAddress))
-	if err != nil {
-		return fmt.Errorf("could not fetch statistics for neighbor [%s] (%s)", neighborAddress, err.Error())
-	}
-
-	// Unmarshal the JSON data into our neighbor statistics struct
-	if err := json.Unmarshal([]byte(rawData), &neighbors); err != nil {
-		return fmt.Errorf("could not parse neighbor statistics (%s)", err.Error())
-	}
-
-	var ok bool
-	r.neighborStats, ok = neighbors[neighborAddress]
-	if !ok {
-		return fmt.Errorf("neighbor [%s] not found", neighborAddress)
-	}
-
-	// Manually adjust some returned metrics and/or provide fallback values
-	r.neighborStats.OperationalState = strings.ToUpper(r.neighborStats.OperationalState)
-	if r.neighborStats.LocalHost == "" {
-		r.neighborStats.LocalHost = r.neighborStats.UpdateSource
-	}
-	if r.neighborStats.RemoteHost == "" {
-		r.neighborStats.RemoteHost = neighborAddress
-	}
-
-	// Parse FRR state timers (up since OR reset since) to receive 'time.Duration' objects
-	if r.neighborStats.UpTimer > 0 {
-		upTimer := fmt.Sprintf("%dms", r.neighborStats.UpTimer)
-		r.neighborStats.lastStateChange, err = time.ParseDuration(upTimer)
-
-		if err != nil {
-			return fmt.Errorf("could not parse up timer [%s] (%s)", upTimer, err.Error())
-		}
-	} else {
-		resetTimer := fmt.Sprintf("%dms", r.neighborStats.ResetTimer)
-		r.neighborStats.lastStateChange, err = time.ParseDuration(resetTimer)
-
-		if err != nil {
-			return fmt.Errorf("could not parse reset timer [%s] (%s)", resetTimer, err.Error())
-		}
-	}
-
-	// Calculate prefix limit usage in percent for all address families
-	for _, addressFamily := range r.neighborStats.AddressFamilies {
-		r.neighborStats.prefixUsageTotal += addressFamily.PrefixCount
-		r.neighborStats.prefixLimitTotal += addressFamily.PrefixLimit
-	}
-	if r.neighborStats.prefixLimitTotal > 0 {
-		r.neighborStats.prefixLimitUsagePercent = int(float64(r.neighborStats.prefixUsageTotal) / float64(r.neighborStats.prefixLimitTotal) * 100)
-	}
-
-	return nil
+func (r *bgpNeighborResource) Session() Session {
+	return r.ThisPlugin().ThisModule().session
 }
 
 func (r *bgpNeighborResource) ThisPlugin() *bgpNeighborPlugin {

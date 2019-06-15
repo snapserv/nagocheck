@@ -20,19 +20,17 @@ package modfrrouting
 
 import (
 	"fmt"
-	"github.com/snapserv/nagocheck/mod-frrouting/goffr"
 	"github.com/snapserv/nagocheck/nagocheck"
+	"strings"
 )
 
 type frroutingModule struct {
 	nagocheck.Module
 
-	GoffrSession goffr.Session
+	session Session
 
-	ConnectionMode string
-	VtyshPath      string
-	TelnetAddress  string
-	TelnetPassword string
+	connectionMode string
+	vtyshCommand   string
 }
 
 // NewFrroutingModule instantiates frroutingModule and all contained plugins
@@ -46,29 +44,19 @@ func NewFrroutingModule() nagocheck.Module {
 }
 
 func (m *frroutingModule) DefineFlags(node nagocheck.KingpinNode) {
-	node.Flag("mode", "Specifies the mode which should be used to connect to the FRRouting daemon, which can either be "+
-		"vtysh (recommended) or telnet.").
-		Short('m').Default("vtysh").EnumVar(&m.ConnectionMode, "vtysh", "telnet")
+	node.Flag("mode", "Specifies the connection mode for communicating with the FRRouting daemon.").
+		Short('m').Default("vtysh").EnumVar(&m.connectionMode, "vtysh")
 
-	node.Flag("vtysh-path", "Vtysh Mode: Absolute path to executable vtysh binary.").
-		Default("/usr/bin/vtysh").StringVar(&m.VtyshPath)
-
-	node.Flag("telnet-address", "Telnet Mode: Specifies the address of the given router, which should offer a telnet "+
-		"connection to the standard port used by FRRouting for the bgp daemon.").
-		Default("localhost").StringVar(&m.TelnetAddress)
-
-	node.Flag("telnet-password", "Telnet Mode: Specifies the password which should be used for connecting against the "+
-		"FRRouting bgpd daemon. Please note that this is the connection and -not- the enable password.").
-		Default("example").StringVar(&m.TelnetPassword)
+	node.Flag("vtysh-cmd", "[vtysh] Specifies the command with optional arguments to be used for executing vtysh. "+
+		"Use comma to separate command and arguments. Example when using sudo: sudo,-n,/usr/bin/vtysh,-u").
+		Default("/usr/bin/vtysh").StringVar(&m.vtyshCommand)
 }
 
 func (m *frroutingModule) ExecutePlugin(plugin nagocheck.Plugin) error {
-	if m.ConnectionMode == "vtysh" {
-		m.GoffrSession = goffr.NewVtyshSession(m.VtyshPath)
-	} else if m.ConnectionMode == "telnet" {
-		m.GoffrSession = goffr.NewTelnetSession(m.TelnetAddress, m.TelnetPassword)
+	if m.connectionMode == "vtysh" {
+		m.session = NewVtyshSession(strings.Split(m.vtyshCommand, ","))
 	} else {
-		return fmt.Errorf("unknown connection mode: " + m.ConnectionMode)
+		return fmt.Errorf("unknown connection mode: " + m.connectionMode)
 	}
 
 	return m.Module.ExecutePlugin(plugin)
