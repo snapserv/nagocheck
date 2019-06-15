@@ -165,7 +165,7 @@ func (s *vtyshSession) execute(commandFmt string, args ...interface{}) (_ string
 
 func (s *vtyshSession) executeJSON(commandFmt string, args ...interface{}) (_ string, err error) {
 	rawOutput, err := s.execute(commandFmt, args...)
-	sanitizedOutput := strings.ReplaceAll(strings.TrimSpace(rawOutput), "\n", " ")
+	sanitizedOutput := strings.Replace(strings.TrimSpace(rawOutput), "\n", " ", -1)
 	if err != nil {
 		return "", fmt.Errorf("command execution failed: %s (%s)", err.Error(), sanitizedOutput)
 	}
