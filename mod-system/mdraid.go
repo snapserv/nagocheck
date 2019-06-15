@@ -122,7 +122,7 @@ func (s *mdraidSummarizer) Ok(check nagopher.Check) string {
 	for _, result := range resultCollection {
 		context := result.Context().OrElse(nil)
 		if context.Name() == "state" {
-			arrayCount += 1
+			arrayCount++
 		}
 	}
 
