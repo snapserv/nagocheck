@@ -37,6 +37,7 @@ func NewSystemModule() nagocheck.Module {
 			nagocheck.ModulePlugin(newSessionPlugin()),
 			nagocheck.ModulePlugin(newTemperaturePlugin()),
 			nagocheck.ModulePlugin(newMdraidPlugin()),
+			nagocheck.ModulePlugin(newZfsPlugin()),
 		),
 	}
 }
