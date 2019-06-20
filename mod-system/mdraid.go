@@ -126,5 +126,9 @@ func (s *mdraidSummarizer) Ok(check nagopher.Check) string {
 		}
 	}
 
+	if arrayCount == 1 {
+		return fmt.Sprintf("%d array healthy", arrayCount)
+	}
+
 	return fmt.Sprintf("%d arrays healthy", arrayCount)
 }
