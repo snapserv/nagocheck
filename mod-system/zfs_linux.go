@@ -31,6 +31,7 @@ import (
 )
 
 const zfsProcBasePath = "/proc/spl/kstat/zfs"
+const zfsProcArcStats = "arcstats"
 const zfsPoolPathPattern = "/*/io"
 
 const (
@@ -38,11 +39,72 @@ const (
 )
 
 func (r *zfsResource) Collect(warnings nagopher.WarningCollection) error {
+	if err := r.collectGlobal(zfsProcBasePath, warnings); err != nil {
+		return err
+	}
+
 	if err := r.collectPools(zfsProcBasePath); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (r *zfsResource) collectGlobal(basePath string, warnings nagopher.WarningCollection) error {
+	if file, err := os.Open(filepath.Join(basePath, zfsProcArcStats)); err == nil {
+		if metrics, err := r.parseGlobalStats(file, warnings); err == nil {
+			if value, ok := metrics["size"]; ok {
+				r.globalStats.arcSize = value
+			}
+			if value, ok := metrics["hits"]; ok {
+				r.globalStats.arcHits = value
+			}
+			if value, ok := metrics["misses"]; ok {
+				r.globalStats.arcMisses = value
+			}
+		} else {
+			warnings.Add(nagopher.NewWarning("could not parse arc statistics: %s", err.Error()))
+		}
+	} else {
+		warnings.Add(nagopher.NewWarning("could not gather arc statistics: %s", err.Error()))
+	}
+
+	return nil
+}
+
+func (r *zfsResource) parseGlobalStats(reader io.Reader, warnings nagopher.WarningCollection) (metrics map[string]uint64, _ error) {
+	skipParsing := true
+	scanner := bufio.NewScanner(reader)
+	metrics = make(map[string]uint64)
+
+	for scanner.Scan() {
+		parts := strings.Fields(scanner.Text())
+
+		if skipParsing && len(parts) == 3 && parts[0] == "name" && parts[1] == "type" && parts[2] == "data" {
+			skipParsing = false
+			continue
+		} else if skipParsing || len(parts) < 3 {
+			continue
+		}
+
+		metricKey, metricType, metricValue := parts[0], parts[1], parts[2]
+		switch metricType {
+		case zfsTypeUint64:
+			value, err := strconv.ParseUint(metricValue, 10, 64)
+			if err != nil {
+				warnings.Add(nagopher.NewWarning("could not parse metric [%s] as uint64: %s", metricKey, metricValue))
+				continue
+			}
+
+			metrics[metricKey] = value
+		}
+	}
+
+	if skipParsing {
+		return metrics, fmt.Errorf("no global statistics have been parsed")
+	}
+
+	return metrics, nil
 }
 
 func (r *zfsResource) collectPools(basePath string) error {

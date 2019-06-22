@@ -39,7 +39,11 @@ type zfsSummarizer struct {
 	nagocheck.Summarizer
 }
 
-type zfsGlobalStats struct{}
+type zfsGlobalStats struct {
+	arcSize   uint64
+	arcHits   uint64
+	arcMisses uint64
+}
 
 type zfsPoolStats struct {
 	state string
@@ -56,7 +60,7 @@ type zfsPoolIOStats struct {
 func newZfsPlugin() *zfsPlugin {
 	return &zfsPlugin{
 		Plugin: nagocheck.NewPlugin("zfs",
-			nagocheck.PluginDescription("ZFS Statistics"),
+			nagocheck.PluginDescription("ZFS Pool Statistics"),
 			nagocheck.PluginForceVerbose(true),
 		),
 	}
@@ -66,6 +70,10 @@ func (p *zfsPlugin) DefineCheck() nagopher.Check {
 	check := nagopher.NewCheck("zfs", newZfsSummarizer(p))
 	check.AttachResources(newZfsResource(p))
 	check.AttachContexts(
+		nagopher.NewScalarContext("arc_size", nil, nil),
+		nagopher.NewScalarContext("arc_hits", nil, nil),
+		nagopher.NewScalarContext("arc_misses", nil, nil),
+
 		nagopher.NewStringMatchContext("pool_state", nagopher.StateCritical(), []string{"ONLINE"}),
 		nagopher.NewStringInfoContext("pool"),
 	)
@@ -84,10 +92,15 @@ func (r *zfsResource) Probe(warnings nagopher.WarningCollection) (metrics []nago
 		return metrics, err
 	}
 
+	metrics = append(metrics,
+		nagopher.MustNewNumericMetric("arc_size", float64(r.globalStats.arcSize), "B", nil, ""),
+		nagopher.MustNewNumericMetric("arc_hits", float64(r.globalStats.arcHits), "c", nil, ""),
+		nagopher.MustNewNumericMetric("arc_misses", float64(r.globalStats.arcMisses), "c", nil, ""),
+	)
+
 	for poolName, pool := range r.poolStats {
 		metrics = append(metrics,
 			nagopher.MustNewStringMetric(fmt.Sprintf("pool_%s_state", poolName), pool.state, "pool_state"),
-
 			nagopher.MustNewStringMetric(
 				fmt.Sprintf("pool_%s", poolName),
 				fmt.Sprintf("%s is %s - %s read, %s written",
