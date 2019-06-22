@@ -112,7 +112,7 @@ func (r *interfaceResource) Probe(warnings nagopher.WarningCollection) (metrics 
 	metrics = append(metrics,
 		nagopher.MustNewStringMetric("state", r.linkState, ""),
 		nagopher.MustNewStringMetric("duplex", r.linkDuplex, ""),
-		nagopher.MustNewNumericMetric("speed", intToFloat64(r.linkSpeed), "M", nil, ""),
+		nagopher.MustNewNumericMetric("speed", intToFloat64(r.linkSpeed), "MB", nil, ""),
 		nagopher.MustNewNumericMetric("errors_tx", intToFloat64(r.transmitErrors), "c", nil, ""),
 		nagopher.MustNewNumericMetric("errors_rx", intToFloat64(r.receiveErrors), "c", nil, ""),
 	)
