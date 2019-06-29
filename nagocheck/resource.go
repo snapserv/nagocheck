@@ -24,9 +24,7 @@ import (
 	"github.com/fabiokung/shm"
 	"github.com/snapserv/nagopher"
 	"io/ioutil"
-	"os"
 	"strings"
-	"syscall"
 )
 
 // Resource provides a base type for nagocheck resources, which embeds nagopher.Resource
@@ -45,11 +43,6 @@ type baseResource struct {
 	persistenceKey   string
 	persistenceStore interface{}
 }
-
-const shmOpenFlags = os.O_CREATE | syscall.O_DSYNC | syscall.O_RSYNC
-const shmReadFlags = shmOpenFlags | os.O_RDONLY
-const shmWriteFlags = shmOpenFlags | os.O_WRONLY | os.O_TRUNC
-const shmDefaultMode = 0600
 
 // NewResource instantiates baseResource with the given functional options
 func NewResource(plugin Plugin, options ...ResourceOpt) Resource {

@@ -8,9 +8,12 @@ require (
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/pborman/uuid v1.2.0 // indirect
-	github.com/shirou/gopsutil v2.18.12+incompatible
-	github.com/shirou/w32 v0.0.0-20160930032740-bb4de0191aa4 // indirect
+	github.com/shirou/gopsutil v0.0.0-20190601025009-5335e3fd506d
 	github.com/snapserv/nagopher v0.1.6
-	golang.org/x/sys v0.0.0-20190529164535-6a60838ec259 // indirect
+	github.com/stretchr/objx v0.2.0 // indirect
+	golang.org/x/crypto v0.0.0-20190621222207-cc06ce4a13d4 // indirect
+	golang.org/x/net v0.0.0-20190628185345-da137c7871d7 // indirect
+	golang.org/x/sys v0.0.0-20190626221950-04f50cda93cb // indirect
+	golang.org/x/tools v0.0.0-20190628222527-fb37f6ba8261
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )

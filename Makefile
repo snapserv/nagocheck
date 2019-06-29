@@ -38,3 +38,7 @@ test: devel-deps
 .PHONY: coverage
 coverage: devel-deps
 	$(GOVERALLS) $(GOVERALLS_ARGS)
+
+.PHONY: snapshot
+snapshot: devel-deps
+	$(GORELEASER) --snapshot --skip-publish --rm-dist
