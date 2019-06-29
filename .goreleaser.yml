@@ -23,6 +23,10 @@ builds:
 archives:
   - format: tar.gz
     wrap_in_directory: true
+    files:
+      - README.md
+      - LICENSE.txt
+      - icinga-commands.conf
 
 nfpms:
   - vendor: Pascal Mathis
@@ -34,3 +38,5 @@ nfpms:
     formats:
       - deb
       - rpm
+    config_files:
+      icinga-commands.conf: /etc/nagocheck/icinga-commands.conf
