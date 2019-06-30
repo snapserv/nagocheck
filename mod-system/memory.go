@@ -47,6 +47,7 @@ type memoryResource struct {
 		wiredBytes    float64
 		buffersBytes  float64
 		cachedBytes   float64
+		laundryBytes  float64
 	}
 }
 
@@ -63,7 +64,7 @@ func newMemoryPlugin() *memoryPlugin {
 }
 
 func (p *memoryPlugin) DefineFlags(kp nagocheck.KingpinNode) {
-	kp.Flag("count-reclaimable", "Count reclaimable space (cached/buffers) as usedBytes.").
+	kp.Flag("count-reclaimable", "Count reclaimable space (e.g. cached and buffers) as used.").
 		BoolVar(&p.CountReclaimable)
 }
 
@@ -86,6 +87,7 @@ func (p *memoryPlugin) DefineCheck() nagopher.Check {
 		nagopher.NewScalarContext("wired", nil, nil),
 		nagopher.NewScalarContext("buffers", nil, nil),
 		nagopher.NewScalarContext("cached", nil, nil),
+		nagopher.NewScalarContext("laundry", nil, nil),
 	)
 
 	return check
@@ -122,6 +124,7 @@ func (r *memoryResource) Probe(warnings nagopher.WarningCollection) (metrics []n
 	optionalMetric("wired", r.usageStats.wiredBytes, "B", &valueRange, "")
 	optionalMetric("buffers", r.usageStats.buffersBytes, "B", &valueRange, "")
 	optionalMetric("cached", r.usageStats.cachedBytes, "B", &valueRange, "")
+	optionalMetric("cached", r.usageStats.laundryBytes, "B", &valueRange, "")
 
 	return metrics, nil
 }
@@ -132,9 +135,9 @@ func (r *memoryResource) Collect() error {
 		return err
 	}
 
-	freeBytes := vmStats.Free
-	if !r.ThisPlugin().CountReclaimable {
-		freeBytes += vmStats.Cached + vmStats.Buffers
+	freeBytes := vmStats.Available
+	if r.ThisPlugin().CountReclaimable {
+		freeBytes = vmStats.Free
 	}
 
 	r.usageStats.totalBytes = float64(vmStats.Total)
@@ -146,6 +149,7 @@ func (r *memoryResource) Collect() error {
 	r.usageStats.wiredBytes = float64(vmStats.Wired)
 	r.usageStats.buffersBytes = float64(vmStats.Buffers)
 	r.usageStats.cachedBytes = float64(vmStats.Cached)
+	r.usageStats.laundryBytes = float64(vmStats.Laundry)
 
 	r.usagePercent = nagocheck.Round(100-(r.usageStats.freeBytes/r.usageStats.totalBytes*100), 2)
 
@@ -182,6 +186,7 @@ func (s *memorySummarizer) Ok(check nagopher.Check) string {
 
 	optionalResult("buffers")
 	optionalResult("cached")
+	optionalResult("laundry")
 
 	return result
 }
